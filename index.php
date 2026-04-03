@@ -732,7 +732,7 @@
                     </div>
                 </div>
 
-
+                <div class="karta-content">
                 <!-- POHLED 1: HISTORIE -->
                 <div id="history-box">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; gap:15px; flex-wrap:wrap;">
