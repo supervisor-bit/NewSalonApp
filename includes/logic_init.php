@@ -1,0 +1,393 @@
+<?php require_once 'auth.php';
+ 
+// index.php
+
+
+$setup_needed = false;
+if (!file_exists('db.php')) {
+    $setup_needed = true;
+} else {
+    include 'db.php';
+    if (!isset($pdo)) {
+        $setup_needed = true;
+    }
+}
+
+// Chytáme zprávy do UI
+$zprava = "";
+if (isset($_SESSION['msg'])) {
+    $zprava = $_SESSION['msg'];
+    unset($_SESSION['msg']);
+}
+
+$client_id = isset($_GET['client_id']) ? (int)$_GET['client_id'] : 0;
+$range = isset($_GET['range']) ? $_GET['range'] : null;
+$view = isset($_GET['view']) ? $_GET['view'] : null;
+
+// MUTUALLY EXCLUSIVE VIEWS
+$show_settings = ($view === 'settings');
+$show_accounting = ($view === 'accounting');
+$show_stats = ($view === null && $range !== null && $client_id === 0);
+$show_client_karta = ($view === null && !$show_stats && !$show_settings && !$show_accounting);
+
+// Logika pro aktualizaci profilu (přesunuto z settings.php)
+if (!$setup_needed && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_profile') {
+    $current_username = $_SESSION['username'] ?? 'admin';
+    $new_user = trim($_POST['username'] ?? '');
+    $old_pass = $_POST['current_password'] ?? '';
+    $new_pass = $_POST['new_password'] ?? '';
+    $confirm_pass = $_POST['confirm_password'] ?? '';
+
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
+    $stmt->execute([$current_username]);
+    $user_row = $stmt->fetch();
+
+    if ($user_row && password_verify($old_pass, $user_row['password_hash'])) {
+        if (!empty($new_user) && $new_user !== $current_username) {
+            $update = $pdo->prepare("UPDATE users SET username = ? WHERE id = ?");
+            $update->execute([$new_user, $user_row['id']]);
+            $_SESSION['username'] = $new_user;
+            $_SESSION['msg'] = "Uživatelské jméno bylo změněno.";
+        }
+        if (!empty($new_pass)) {
+            if ($new_pass === $confirm_pass) {
+                $hash = password_hash($new_pass, PASSWORD_BCRYPT);
+                $update = $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
+                $update->execute([$hash, $user_row['id']]);
+                $_SESSION['msg'] = ($_SESSION['msg'] ?? "") . " Heslo bylo úspěšně aktualizováno!";
+            } else {
+                $_SESSION['msg'] = "CHYBA: Nová hesla se neshodují.";
+            }
+        }
+    }
+    $active_tab = $_POST['active_tab'] ?? 'profile';
+    header("Location: index.php?view=settings&tab=$active_tab");
+    exit;
+}
+
+// Chytání aktivní záložky pro nastavení
+$active_settings_tab = isset($_GET['tab']) ? $_GET['tab'] : 'profile';
+
+$active_client = null;
+$visits = [];
+$all_materials = [];
+$materials = [];
+$clients = [];
+$total_visits = 0;
+$total_spent = 0;
+
+// Client Analytics
+$vip_status = false;
+$avg_interval = null;
+
+if (!$setup_needed) {
+    // 1. Stáhnutí všech klientek pro levý panel (včetně použitých materiálů a dat návštěv pro hledání)
+    $c_stmt = $pdo->query("
+        SELECT c.*, 
+        (SELECT MAX(visit_date) FROM visits WHERE client_id = c.id) as last_visit_date,
+        (SELECT GROUP_CONCAT(DISTINCT m.name SEPARATOR ' ') 
+         FROM visits v 
+         JOIN formulas f ON v.id = f.visit_id 
+         JOIN materials m ON f.material_id = m.id 
+         WHERE v.client_id = c.id) as materials_used,
+        (SELECT GROUP_CONCAT(DISTINCT DATE_FORMAT(visit_date, '%d.%m.%Y') SEPARATOR ' ') 
+         FROM visits WHERE client_id = c.id) as visit_dates
+        FROM clients c 
+        ORDER BY first_name ASC
+    ");
+    $clients = $c_stmt->fetchAll();
+
+    // 2. Aktivní klient a jeho návštěvy
+    if ($client_id > 0) {
+        $ac_stmt = $pdo->prepare("SELECT * FROM clients WHERE id = ?");
+        $ac_stmt->execute([$client_id]);
+        $active_client = $ac_stmt->fetch();
+
+        if ($active_client) {
+            $v_stmt = $pdo->prepare("SELECT * FROM visits WHERE client_id = ? ORDER BY visit_date DESC, id DESC");
+            $v_stmt->execute([$client_id]);
+            $visits = $v_stmt->fetchAll();
+            
+            $total_visits = count($visits);
+            $total_spent_work = 0;
+            $total_spent_products = 0;
+            $total_products_count = 0;
+
+            // Average interval calculation
+            if ($total_visits > 1) {
+                $intervals = [];
+                for ($i = 0; $i < $total_visits - 1; $i++) {
+                    $d1 = strtotime($visits[$i]['visit_date']);
+                    $d2 = strtotime($visits[$i+1]['visit_date']);
+                    $diff = abs($d1 - $d2) / 86400; // days
+                    if ($diff > 0) {
+                        $intervals[] = $diff;
+                    }
+                }
+                if (count($intervals) > 0) {
+                    $avg_interval = array_sum($intervals) / count($intervals);
+                }
+            }
+
+            foreach ($visits as $k => $v) {
+                if(isset($v['price'])) { 
+                    $total_spent_work += (int)$v['price'];
+                }
+                
+                // Vytazeni receptur
+                $f_stmt = $pdo->prepare("
+                    SELECT f.material_id, f.amount_g, f.bowl_name, m.category, m.name 
+                    FROM formulas f
+                    JOIN materials m ON f.material_id = m.id
+                    WHERE f.visit_id = ?
+                ");
+                $f_stmt->execute([$v['id']]);
+                $formulas = $f_stmt->fetchAll();
+                $visits[$k]['formulas'] = $formulas;
+                
+                $array_for_json = [];
+                foreach ($formulas as $row) {
+                    $bName = $row['bowl_name'] ?: 'Miska 1';
+                    if (!isset($array_for_json[$bName])) {
+                        $array_for_json[$bName] = [];
+                    }
+                    $array_for_json[$bName][] = [ 'mat_id' => $row['material_id'], 'g' => $row['amount_g'] ];
+                }
+                $visits[$k]['formulas_json'] = json_encode($array_for_json);
+                
+                // Services JSON for copying
+                $services_json = [
+                    's_metal_detox' => (int)($v['s_metal_detox'] ?? 0),
+                    's_trim'        => (int)($v['s_trim'] ?? 0),
+                    's_blow'        => (int)($v['s_blow'] ?? 0),
+                    's_curl'        => (int)($v['s_curl'] ?? 0),
+                    's_iron'        => (int)($v['s_iron'] ?? 0)
+                ];
+                $visits[$k]['services_json'] = json_encode($services_json);
+                
+                // Vytazeni produktu (Homecare)
+                $p_stmt = $pdo->prepare("
+                    SELECT vp.product_id, vp.price_sold, vp.amount, p.brand, p.name 
+                    FROM visit_products vp
+                    JOIN products p ON vp.product_id = p.id
+                    WHERE vp.visit_id = ?
+                ");
+                $p_stmt->execute([$v['id']]);
+                $visit_products = $p_stmt->fetchAll();
+                $visits[$k]['products'] = $visit_products;
+                $visits[$k]['products_json'] = json_encode($visit_products);
+                
+                foreach ($visit_products as $vp) {
+                    $item_total = ($vp['price_sold'] * $vp['amount']);
+                    $total_spent_products += $item_total;
+                    $total_products_count += $vp['amount'];
+                }
+            }
+            
+            $total_spent = $total_spent_work + $total_spent_products;
+
+            // VIP Status calculation (Top 10% spenders)
+            $all_clients_totals_stmt = $pdo->query("
+                SELECT c.id, 
+                (IFNULL((SELECT SUM(price) FROM visits WHERE client_id = c.id), 0) + 
+                 IFNULL((SELECT SUM(vp.price_sold * vp.amount) FROM visit_products vp JOIN visits v ON vp.visit_id = v.id WHERE v.client_id = c.id), 0)) as total 
+                FROM clients c 
+                ORDER BY total DESC
+            ");
+            $all_totals = $all_clients_totals_stmt->fetchAll(PDO::FETCH_COLUMN);
+            if (!empty($all_totals)) {
+                $threshold_idx = max(0, floor(count($all_totals) * 0.1) - 1);
+                $threshold = $all_totals[$threshold_idx];
+                if ($total_spent >= $threshold) {
+                    $vip_status = true;
+                }
+            }
+        }
+    }
+
+    // 3. Stáhnutí číselníku pro selekty s prioritou podle používání
+    $m_stmt = $pdo->query("
+        SELECT m.id, m.category, m.name, m.is_active, 
+        (SELECT COUNT(*) FROM formulas f WHERE f.material_id = m.id) as use_count
+        FROM materials m 
+        ORDER BY use_count DESC, m.category, m.name
+    ");
+    $all_materials = $m_stmt->fetchAll();
+    
+    // Pro formuláře návštěvy chceme jen aktivní
+    $materials = array_filter($all_materials, function($m) { return $m['is_active'] == 1; });
+    
+    // 4. Stahnuti produktu na doma s prioritou podle prodejů
+    $pr_stmt = $pdo->query("
+        SELECT p.id, p.brand, p.name, p.price, p.is_active, 
+        (SELECT COUNT(*) FROM visit_products vp WHERE vp.product_id = p.id) as use_count
+        FROM products p 
+        ORDER BY use_count DESC, p.brand, p.name
+    ");
+    $all_products = $pr_stmt->fetchAll();
+    $active_products = array_filter($all_products, function($p) { return $p['is_active'] == 1; });
+
+    // 5. Salon-wide Statistics (Dashboard)
+    $stats_total_work = 0;
+    $stats_total_prod = 0;
+    $stats_visit_count = 0;
+    
+    $date_clause = " WHERE 1=1 ";
+    if ($range === 'today') $date_clause = " WHERE visit_date = CURDATE() ";
+    if ($range === 'this_month') $date_clause = " WHERE MONTH(visit_date) = MONTH(CURDATE()) AND YEAR(visit_date) = YEAR(CURDATE()) ";
+    if ($range === 'this_year') $date_clause = " WHERE YEAR(visit_date) = YEAR(CURDATE()) ";
+
+    $s_stmt = $pdo->query("SELECT SUM(price) as sw FROM visits" . $date_clause);
+    $stats_total_work = (int)$s_stmt->fetchColumn();
+    
+    $p_stmt = $pdo->query("SELECT SUM(vp.price_sold * vp.amount) as sp FROM visit_products vp JOIN visits v ON vp.visit_id = v.id" . str_replace('WHERE', 'AND', $date_clause));
+    $stats_total_prod = (int)$p_stmt->fetchColumn();
+    
+    $v_stmt = $pdo->query("SELECT COUNT(*) FROM visits" . $date_clause);
+    $stats_visit_count = (int)$v_stmt->fetchColumn();
+
+    // Monthly breakdown
+    $m_stmt = $pdo->query("
+        SELECT 
+            DATE_FORMAT(visit_date, '%Y-%m') as ym, 
+            SUM(price) as work_rev,
+            COUNT(*) as v_count
+        FROM visits 
+        GROUP BY ym 
+        ORDER BY ym DESC 
+        LIMIT 12
+    ");
+    $monthly_stats = $m_stmt->fetchAll();
+    
+    // Add product revenue to monthly stats
+    foreach($monthly_stats as $k => $ms) {
+        $mp_stmt = $pdo->prepare("SELECT SUM(vp.price_sold * vp.amount) FROM visit_products vp JOIN visits v ON vp.visit_id = v.id WHERE DATE_FORMAT(v.visit_date, '%Y-%m') = ?");
+        $mp_stmt->execute([$ms['ym']]);
+        $monthly_stats[$k]['prod_rev'] = (int)$mp_stmt->fetchColumn();
+    }
+
+    // TOP 5 Clients
+    $top_stmt = $pdo->query("
+        SELECT c.id, c.first_name, c.last_name, SUM(v.price) as work_sum
+        FROM clients c
+        JOIN visits v ON c.id = v.client_id
+        GROUP BY c.id
+        ORDER BY work_sum DESC
+        LIMIT 5
+    ");
+    $top_clients = $top_stmt->fetchAll();
+    foreach($top_clients as $k => $tc) {
+        $tcp_stmt = $pdo->prepare("SELECT SUM(vp.price_sold * vp.amount) FROM visit_products vp JOIN visits v ON vp.visit_id = v.id WHERE v.client_id = ?");
+        $tcp_stmt->execute([$tc['id']]);
+        $top_clients[$k]['prod_sum'] = (int)$tcp_stmt->fetchColumn();
+    }
+
+    // TOP 5 Materials by consumption
+    $mat_stmt = $pdo->query("
+        SELECT m.name, m.category, SUM(f.amount_g) as total_g 
+        FROM formulas f 
+        JOIN materials m ON f.material_id = m.id 
+        JOIN visits v ON f.visit_id = v.id 
+        " . $date_clause . "
+        GROUP BY f.material_id 
+        ORDER BY total_g DESC 
+        LIMIT 5
+    ");
+    $top_materials = $mat_stmt->fetchAll();
+
+    // --- PROFESIONÁLNÍ ÚČETNÍ LOGIKA ---
+    $today_date = date('Y-m-d');
+    $current_month = date('Y-m');
+    $cz_months = [1=>"Leden", 2=>"Únor", 3=>"Březen", 4=>"Duben", 5=>"Květen", 6=>"Červen", 7=>"Červenec", 8=>"Srpen", 9=>"Září", 10=>"Říjen", 11=>"Listopad", 12=>"Prosinec"];
+    $current_month_cz = $cz_months[(int)date('m')] . ' ' . date('Y');
+
+    // 1. Dnešní tržba (Služby)
+    $stmt_t_s = $pdo->prepare("SELECT SUM(price) as sum_s, COUNT(id) as count_v FROM visits WHERE visit_date = ? AND price IS NOT NULL");
+    $stmt_t_s->execute([$today_date]);
+    $today_stats = $stmt_t_s->fetch();
+
+    // 2. Dnešní tržba (Produkty)
+    $stmt_t_p = $pdo->prepare("SELECT SUM(vp.price_sold * vp.amount) as sum_p FROM visit_products vp JOIN visits v ON vp.visit_id = v.id WHERE v.visit_date = ?");
+    $stmt_t_p->execute([$today_date]);
+    $today_p_sum = $stmt_t_p->fetchColumn() ?: 0;
+
+    // 3. Seznam dnešních návštěv pro denní report
+    $stmt_today_list = $pdo->prepare("
+        SELECT v.*, c.first_name, c.last_name 
+        FROM visits v 
+        JOIN clients c ON v.client_id = c.id 
+        WHERE v.visit_date = ? 
+        ORDER BY v.id DESC
+    ");
+    $stmt_today_list->execute([$today_date]);
+    $today_visits_list = $stmt_today_list->fetchAll();
+
+    // 4. Měsíční souhrn aktuální
+    $stmt_m_s = $pdo->prepare("SELECT SUM(price) as sum_s, COUNT(id) as count_v FROM visits WHERE visit_date LIKE ? AND price IS NOT NULL");
+    $stmt_m_s->execute([$current_month . '%']);
+    $m_stats_now = $stmt_m_s->fetch();
+
+    $stmt_m_p = $pdo->prepare("SELECT SUM(vp.price_sold * vp.amount) as sum_p FROM visit_products vp JOIN visits v ON vp.visit_id = v.id WHERE v.visit_date LIKE ?");
+    $stmt_m_p->execute([$current_month . '%']);
+    $m_prod_now = $stmt_m_p->fetchColumn() ?: 0;
+
+    // 5. Robustní rozpis po dnech přes PHP (vždy odpovídá záhlaví)
+    $stmt_m_all = $pdo->prepare("SELECT id, visit_date, price FROM visits WHERE visit_date LIKE ? ORDER BY visit_date DESC");
+    $stmt_m_all->execute([$current_month . '%']);
+    $month_visits = $stmt_m_all->fetchAll();
+    
+    $month_daily_breakdown = [];
+    foreach($month_visits as $mv) {
+        $d = $mv['visit_date'];
+        if(!isset($month_daily_breakdown[$d])) {
+            $month_daily_breakdown[$d] = ['visit_date' => $d, 'day_sum_s' => 0, 'day_sum_p' => 0];
+        }
+        $month_daily_breakdown[$d]['day_sum_s'] += (int)$mv['price'];
+        
+        // Produkty pro tuto konkretni navstevu
+        $stmt_p_v = $pdo->prepare("SELECT SUM(price_sold * amount) FROM visit_products WHERE visit_id = ?");
+        $stmt_p_v->execute([$mv['id']]);
+        $month_daily_breakdown[$d]['day_sum_p'] += (int)$stmt_p_v->fetchColumn();
+    }
+    // Re-index pro loop
+    $month_daily_breakdown = array_values($month_daily_breakdown);
+
+    // Uzávěrka by view
+    $show_accounting = (isset($_GET['view']) && $_GET['view'] === 'accounting');
+
+    // ROČNÍ PŘEHLED TRŽEB
+    $annual_stats_stmt = $pdo->query("
+        SELECT 
+            YEAR(visit_date) as rok,
+            SUM(price) as sluzby,
+            COUNT(*) as navstevy
+        FROM visits
+        WHERE price IS NOT NULL
+        GROUP BY YEAR(visit_date)
+        ORDER BY rok DESC
+        LIMIT 5
+    ");
+    $annual_stats = $annual_stats_stmt->fetchAll();
+    foreach($annual_stats as $k => $row) {
+        $ap_stmt = $pdo->prepare("SELECT SUM(vp.price_sold * vp.amount) FROM visit_products vp JOIN visits v ON vp.visit_id = v.id WHERE YEAR(v.visit_date) = ?");
+        $ap_stmt->execute([$row['rok']]);
+        $annual_stats[$k]['produkty'] = (int)$ap_stmt->fetchColumn();
+        $annual_stats[$k]['celkem'] = (int)$row['sluzby'] + $annual_stats[$k]['produkty'];
+    }
+
+    // HLÍDAČ: Ztracené klientky (pro Dashboard)
+    $lost_clients = [];
+    $all_c = $pdo->query("SELECT id, first_name, last_name, phone, preferred_interval, (SELECT MAX(visit_date) FROM visits WHERE client_id = clients.id) as last_date FROM clients")->fetchAll();
+    foreach($all_c as $c) {
+        if(!$c['last_date']) continue;
+        $pref = $c['preferred_interval'] ?: 8;
+        $days_since = (time() - strtotime($c['last_date'])) / 86400;
+        if($days_since > ($pref * 7 + 14)) {
+            $c['days_overdue'] = (int)($days_since - ($pref * 7));
+            $lost_clients[] = $c;
+        }
+    }
+    // Seřadit podle největšího zpoždění
+    usort($lost_clients, function($a, $b) { return $b['days_overdue'] <=> $a['days_overdue']; });
+}
+?>
