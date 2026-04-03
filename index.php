@@ -699,7 +699,7 @@
 
                 <button class="chip-btn chip-diag" onclick="ukazUpravuDiagnostiky()">
                     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>
-                    Diagnostika & Poznámky
+                    Diagnostika
                 </button>
 
 
