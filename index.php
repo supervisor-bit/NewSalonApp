@@ -648,68 +648,59 @@
     <div id="client-karta-box" class="karta-container" style="display: <?= $show_client_karta ? 'flex' : 'none' ?>;">
         <?php if ($active_client): ?>
             
-        <!-- Allergy modal moved to includes/modals.php -->
-        <div class="karta-content">
+        <?php  if(!empty($active_client['allergy_note'])): ?>
+            <div class="alert-box" style="margin: 24px 32px 0 32px;"><i data-lucide="alert-triangle" style="width:20px;height:20px;"></i> POZOR: <?= nl2br(htmlspecialchars($active_client['allergy_note'])) ?></div>
+        <?php  endif; ?>
+
+        <div class="karta-header">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:20px;">
+                <div style="flex:1; min-width:250px;">
+                    <h1 class="karta-title" style="display:flex; align-items:center; gap:10px;">
+                        <?= htmlspecialchars($active_client['first_name'] . ' ' . $active_client['last_name']) ?>
+                        <?php  if($vip_status): ?>
+                            <span title="VIP Klient (Top 10% tržeb)" style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color:white; padding:4px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(245,158,11,0.3);">
+                                <i data-lucide="star" style="width:14px; height:14px; fill:currentColor;"></i>
+                            </span>
+                        <?php  endif; ?>
+                    </h1>
+                    <span class="karta-subtitle" style="display:flex; align-items:center; gap:6px;">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.15 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.09 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7a2 2 0 0 1 1.72 2.03z"/></svg>
+                        <?= htmlspecialchars($active_client['phone'] ?: 'Telefon nezadán') ?>
+                    </span>
+                </div>
+                <div style="text-align:right; display:flex; gap:15px; align-items:center;">
+                    <div style="text-align:right; background:rgba(255,255,255,0.5); padding:8px 15px; border-radius:12px; border:1px solid #e2e8f0;">
+                        <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px;">Práce</div>
+                        <div style="font-size:15px; font-weight:700; color:#475569;"><?= number_format($total_spent_work, 0, ',', ' ') ?> Kč</div>
+                    </div>
+                    <div style="text-align:right; background:rgba(255,255,255,0.5); padding:8px 15px; border-radius:12px; border:1px solid #e2e8f0;">
+                        <div style="font-size:10px; color:var(--primary); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px;">Produkty (<?= $total_products_count ?> ks)</div>
+                        <div style="font-size:15px; font-weight:700; color:var(--primary-dark);"><?= number_format($total_spent_products, 0, ',', ' ') ?> Kč</div>
+                    </div>
+                    <div style="text-align:right; background:linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); padding:12px 20px; border-radius:14px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.02); min-width:140px;">
+                        <div style="font-size:22px; font-weight:700; color:#1e293b; font-family:'Outfit',sans-serif; letter-spacing:-0.5px;"><?= number_format($total_spent, 0, ',', ' ') ?> Kč</div>
+                        <div style="font-size:11px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; margin-top:2px;"><?= $total_visits ?> návštěv</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap;">
                 <?php  if(!empty($active_client['allergy_note'])): ?>
-                    <div class="alert-box"><i data-lucide="alert-triangle" style="width:20px;height:20px;"></i> POZOR: <?= nl2br(htmlspecialchars($active_client['allergy_note'])) ?></div>
+                    <button class="chip-btn chip-allergy" onclick="ukazUpravuVarovani()">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        Alergie: <?= mb_substr(htmlspecialchars($active_client['allergy_note']), 0, 35) ?>…
+                    </button>
+                <?php  else: ?>
+                    <button class="chip-btn chip-action" onclick="ukazUpravuVarovani()">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        Bez alergií
+                    </button>
                 <?php  endif; ?>
 
-                <div class="karta-header">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:20px;">
-                        <div style="flex:1; min-width:250px;">
-                            <h1 class="karta-title" style="display:flex; align-items:center; gap:10px;">
-                                <?= htmlspecialchars($active_client['first_name'] . ' ' . $active_client['last_name']) ?>
-                                <?php  if($vip_status): ?>
-                                    <span title="VIP Klient (Top 10% tržeb)" style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color:white; padding:4px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(245,158,11,0.3);">
-                                        <i data-lucide="star" style="width:14px; height:14px; fill:currentColor;"></i>
-                                    </span>
-                                <?php  endif; ?>
-                            </h1>
-                            <span class="karta-subtitle" style="display:flex; align-items:center; gap:6px;">
-                                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.15 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.09 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7a2 2 0 0 1 1.72 2.03z"/></svg>
-                                <?= htmlspecialchars($active_client['phone'] ?: 'Telefon nezadán') ?>
-                            </span>
-                        </div>
-                        <div style="text-align:right; display:flex; gap:15px; align-items:center;">
-                            <div style="text-align:right; background:rgba(255,255,255,0.5); padding:8px 15px; border-radius:12px; border:1px solid #e2e8f0;">
-                                <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px;">Práce</div>
-                                <div style="font-size:15px; font-weight:700; color:#475569;"><?= number_format($total_spent_work, 0, ',', ' ') ?> Kč</div>
-                            </div>
-                            <div style="text-align:right; background:rgba(255,255,255,0.5); padding:8px 15px; border-radius:12px; border:1px solid #e2e8f0;">
-                                <div style="font-size:10px; color:var(--primary); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px;">Produkty (<?= $total_products_count ?> ks)</div>
-                                <div style="font-size:15px; font-weight:700; color:var(--primary-dark);"><?= number_format($total_spent_products, 0, ',', ' ') ?> Kč</div>
-                            </div>
-                            <div style="text-align:right; background:linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); padding:12px 20px; border-radius:14px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.02); min-width:140px;">
-                                <div style="font-size:22px; font-weight:700; color:#1e293b; font-family:'Outfit',sans-serif; letter-spacing:-0.5px;"><?= number_format($total_spent, 0, ',', ' ') ?> Kč</div>
-                                <div style="font-size:11px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; margin-top:2px;"><?= $total_visits ?> návštěv</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap;">
-                        <?php  if(!empty($active_client['allergy_note'])): ?>
-                            <button class="chip-btn chip-allergy" onclick="ukazUpravuVarovani()">
-                                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                                Alergie: <?= mb_substr(htmlspecialchars($active_client['allergy_note']), 0, 35) ?>…
-                            </button>
-                        <?php  else: ?>
-                            <button class="chip-btn chip-action" onclick="ukazUpravuVarovani()">
-                                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                                Bez alergií
-                            </button>
-                        <?php  endif; ?>
-                        
-                        <button class="chip-btn chip-diag" onclick="ukazUpravuDiagnostiky()">
-                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>
-                            Diagnostika
-                        </button>
-
-                        <?php  if($avg_interval): ?>
                             <span class="chip-btn chip-purple" style="cursor:default;" title="Průměrný odstup mezi návštěvami">
                                 <i data-lucide="refresh-cw" style="width:14px; height:14px;"></i>
                                 Cca každých <?= round($avg_interval / 7, 1) ?> týdnů
                             </span>
-                        <?php  endif; ?>
 
                         <?php 
                             $nv = $active_client['next_visit_date'] ?? null;
@@ -1043,8 +1034,9 @@
 
             </div>
         </div>
-        
-        <?php  else: ?>
+    </div> <!-- Konec karta-content -->
+    
+    <?php  else: ?>
             <div class="karta-content" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:100px 20px; text-align:center; color:#94a3b8;">
                 <div style="background:#f1f5f9; width:80px; height:80px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin-bottom:20px;">
                     <i data-lucide="users" style="width:40px; height:40px; color:#cbd5e1;"></i>
