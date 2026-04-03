@@ -697,22 +697,41 @@
                     </button>
                 <?php  endif; ?>
 
-                            <span class="chip-btn chip-purple" style="cursor:default;" title="Průměrný odstup mezi návštěvami">
-                                <i data-lucide="refresh-cw" style="width:14px; height:14px;"></i>
-                                Cca každých <?= round($avg_interval / 7, 1) ?> týdnů
-                            </span>
+                <button class="chip-btn chip-diag" onclick="ukazUpravuDiagnostiky()">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>
+                    Diagnostika & Poznámky
+                </button>
+                
+                <a href="tel:<?= $active_client['phone'] ?>" class="chip-btn chip-action">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.15 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.09 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7a2 2 0 0 1 1.72 2.03z"/></svg>
+                    Zavolat
+                </a>
 
-                        <?php 
-                            $nv = $active_client['next_visit_date'] ?? null;
-                            $nvDays = $nv ? (int)((strtotime($nv) - time()) / 86400) : null;
-                        ?>
-                        <?php  if ($nv): ?>
-                            <span class="chip-btn <?= $nvDays <= 7 ? 'chip-allergy' : ($nvDays <= 14 ? 'chip-amber' : 'chip-diag') ?>" style="cursor:default;">
-                                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                                Příště: <?= date('d. m. Y', strtotime($nv)) ?> (<?= $nvDays < 0 ? 'propásnuto' : "za $nvDays dní" ?>)
-                            </span>
-                        <?php  endif; ?>
-                    </div>
+                <?php  if($avg_interval): ?>
+                    <span class="chip-btn chip-purple" style="cursor:default;" title="Průměrný odstup mezi návštěvami">
+                        <i data-lucide="refresh-cw" style="width:14px; height:14px;"></i>
+                        Cca každých <?= round($avg_interval / 7, 1) ?> týdnů
+                    </span>
+                <?php  endif; ?>
+
+                <?php 
+                    $nv = $active_client['next_visit_date'] ?? null;
+                    $nvDays = $nv ? (int)((strtotime($nv) - time()) / 86400) : null;
+                ?>
+                <?php  if ($nv): ?>
+                    <span class="chip-btn <?= $nvDays <= 7 ? 'chip-allergy' : ($nvDays <= 14 ? 'chip-amber' : 'chip-diag') ?>" style="cursor:default;">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        Příště: <?= date('d. m. Y', strtotime($nv)) ?> (<?= $nvDays < 0 ? 'propásnuto' : "za $nvDays dní" ?>)
+                    </span>
+                <?php  endif; ?>
+                
+                <div style="flex:1;"></div>
+                
+                <button class="chip-btn chip-purple" onclick="novaNavsteva(<?= $active_client['id'] ?>)">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Nová návštěva
+                </button>
+            </div>
 
                     <div style="margin-top:16px; display:flex; gap:20px; flex-wrap:wrap; padding:12px 18px; background:#f0fdf4; border-radius:12px; border:1px solid #dcfce7; font-size:13px; color:#166534;">
                         <div style="display:flex; align-items:center; gap:6px;">
