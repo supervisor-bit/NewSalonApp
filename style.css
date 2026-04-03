@@ -188,9 +188,9 @@ body {
 .karta-content { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
 .karta-header { flex-shrink: 0; border-bottom: 1px solid var(--border); padding: 24px 32px; }
 
-#history-box, #new-visit-box, #edit-visit-box { flex: 1; overflow-y: auto; padding: 24px 32px 32px 32px; }
-#history-box::-webkit-scrollbar, #new-visit-box::-webkit-scrollbar, #edit-visit-box::-webkit-scrollbar { width: 6px; }
-#history-box::-webkit-scrollbar-thumb, #new-visit-box::-webkit-scrollbar-thumb, #edit-visit-box::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+#history-box, #new-visit-box, #edit-visit-box, #accounting-box, #settings-dashboard-box { flex: 1; overflow-y: auto; padding: 24px 32px 32px 32px; }
+#history-box::-webkit-scrollbar, #new-visit-box::-webkit-scrollbar, #edit-visit-box::-webkit-scrollbar, #accounting-box::-webkit-scrollbar, #settings-dashboard-box::-webkit-scrollbar { width: 6px; }
+#history-box::-webkit-scrollbar-thumb, #new-visit-box::-webkit-scrollbar-thumb, #edit-visit-box::-webkit-scrollbar-thumb, #accounting-box::-webkit-scrollbar-thumb, #settings-dashboard-box::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
 
 .karta-title { font-size: 28px; margin: 0; font-family: 'Outfit', sans-serif; color: #0f172a; font-weight: 700; }
 .karta-subtitle { color: #64748b; font-size: 13px; font-weight: 500; }

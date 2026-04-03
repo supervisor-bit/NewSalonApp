@@ -118,7 +118,7 @@
 <!-- Main modals moved to includes/modals.php -->
 
     <!-- POHLED: ÚČETNÍ DASHBOARD / UZÁVĚRKY -->
-    <div id="accounting-box" class="karta-container" style="display: <?= $show_accounting ? 'flex' : 'none' ?>; background:#f8fafc; border:none; box-shadow: 0 10px 40px rgba(0,0,0,0.08); overflow:hidden;">
+    <div id="accounting-box" class="karta-container" style="display: <?= $show_accounting ? 'flex' : 'none' ?>; background:#f8fafc; border:none; box-shadow: 0 10px 40px rgba(0,0,0,0.08);">
         <div class="karta-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding:45px 35px; border-bottom:none; display:flex; align-items:center; justify-content:space-between;">
             <div style="display:flex; align-items:center; gap:20px; flex:1;">
                 <div style="background:linear-gradient(135deg, #c5a059 0%, #92733c 100%); color:#fff; width:55px; height:55px; border-radius:18px; display:flex; align-items:center; justify-content:center; box-shadow: 0 8px 20px rgba(197,160,89,0.3); flex-shrink:0;">
