@@ -20,7 +20,7 @@ if ($copy_visit_id > 0) {
     $cv_stmt = $pdo->prepare("
         SELECT f.bowl_name, f.material_id, f.amount_g, m.category as m_cat, m.name as m_name 
         FROM formulas f
-        JOIN materials m ON f.material_id = m.id
+        LEFT JOIN materials m ON f.material_id = m.id
         WHERE f.visit_id = ?
     ");
     $cv_stmt->execute([$copy_visit_id]);
@@ -28,8 +28,8 @@ if ($copy_visit_id > 0) {
         $bn = $row['bowl_name'] ?: 'Miska';
         if (!isset($prefill_bowls[$bn])) $prefill_bowls[$bn] = [];
         $prefill_bowls[$bn][] = [
-            'id' => $row['material_id'],
-            'name' => $row['m_cat'].' '.$row['m_name'],
+            'id' => (int)$row['material_id'],
+            'name' => ($row['m_cat'] ? $row['m_cat'].' ' : '') . ($row['m_name'] ?: 'Neznámý materiál'),
             'amt' => $row['amount_g']
         ];
     }
@@ -282,7 +282,9 @@ if ($copy_visit_id > 0) {
 
         // Initialize first bowl
         <?php if (!empty($prefill_bowls)): ?>
-            applyPastRecipe(<?= json_encode($prefill_bowls) ?>, false);
+            setTimeout(() => {
+                applyPastRecipe(<?= json_encode($prefill_bowls) ?>, false);
+            }, 300);
         <?php else: ?>
             addBowl();
         <?php endif; ?>
