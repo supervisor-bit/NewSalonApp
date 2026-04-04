@@ -5,3 +5,7 @@ tmp/
 .idea/
 *.swp
 *.bak
+
+# Environment variables
+.env
+.env.*
