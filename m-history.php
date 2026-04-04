@@ -98,20 +98,21 @@ foreach($raw_past as $rp) {
         <div style="width:24px;"></div>
     </header>
 
-    <div style="background:var(--primary); color:#fff; padding:20px 16px; text-align:center;">
-        <h2 style="font-size:24px; margin-bottom:4px;"><?= htmlspecialchars($client['last_name'].' '.$client['first_name']) ?></h2>
-        <div style="font-size:13px; opacity:0.7;"><?= htmlspecialchars($client['phone'] ?: 'Bez telefonu') ?></div>
-    </div>
-
-    <?php if (!empty($client['allergy_note'])): ?>
-    <div class="m-allergy-banner">
-        <i data-lucide="alert-triangle" style="color:#ef4444; flex-shrink:0;"></i>
-        <div>
-            <span class="m-allergy-title">POZOR: ALERGIE</span>
-            <div class="m-allergy-text"><?= nl2br(htmlspecialchars($client['allergy_note'])) ?></div>
+    <div class="m-sticky-top">
+        <div class="m-client-banner">
+            <div><?= htmlspecialchars($client['last_name'].' '.$client['first_name']) ?></div>
+            <div style="font-size:11px; font-weight:400; opacity:0.8;"><?= htmlspecialchars($client['phone'] ?: 'Bez tel.') ?></div>
         </div>
+        <?php if (!empty($client['allergy_note'])): ?>
+        <div class="m-allergy-banner">
+            <i data-lucide="alert-triangle" style="color:#ef4444; flex-shrink:0;"></i>
+            <div>
+                <span class="m-allergy-title">POZOR: ALERGIE</span>
+                <div class="m-allergy-text"><?= nl2br(htmlspecialchars($client['allergy_note'])) ?></div>
+            </div>
+        </div>
+        <?php endif; ?>
     </div>
-    <?php endif; ?>
 
     <!-- Rychlá diagnostika -->
     <div class="m-info-grid">
@@ -196,7 +197,10 @@ foreach($raw_past as $rp) {
                 
                 // Počkáme chvilku na vykreslení a pak odskrolujeme
                 setTimeout(() => {
-                    const headerOffset = 70; // výška horní lišty + malá rezerva
+                    const stickyEl = document.querySelector('.m-sticky-top');
+                    const stickyHeight = stickyEl ? stickyEl.offsetHeight : 0;
+                    const headerOffset = stickyHeight + 65; // výška bannerů + černá lišta + rezerva
+                    
                     const elementPosition = header.getBoundingClientRect().top;
                     const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
 
@@ -204,7 +208,7 @@ foreach($raw_past as $rp) {
                         top: offsetPosition,
                         behavior: 'smooth'
                     });
-                }, 50);
+                }, 100);
             }
         }
     </script>

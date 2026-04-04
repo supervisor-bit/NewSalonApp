@@ -51,22 +51,25 @@ if ($copy_visit_id > 0) {
 <body>
     <header class="m-header">
         <a href="m-history.php?client_id=<?= $client_id ?>"><i data-lucide="arrow-left"></i></a>
-        <div style="text-align:center; flex:1;">
-            <div style="font-size:16px; font-weight:700; font-family:'Outfit';"><?= htmlspecialchars($client['first_name'].' '.$client['last_name']) ?></div>
-            <div style="font-size:11px; color:#94a3b8;"><?= mb_strimwidth($client['base_tone'] ?: 'Neznámý výchozí tón', 0, 20, "...") ?></div>
-        </div>
+        <div style="font-size:16px; font-weight:800; font-family:'Outfit';">MÍCHÁRNA</div>
         <div style="width:24px;"></div>
     </header>
 
-    <?php if (!empty($client['allergy_note'])): ?>
-    <div class="m-allergy-banner">
-        <i data-lucide="alert-triangle" style="color:#ef4444; flex-shrink:0;"></i>
-        <div>
-            <span class="m-allergy-title">POZOR: ALERGIE</span>
-            <div class="m-allergy-text"><?= nl2br(htmlspecialchars($client['allergy_note'])) ?></div>
+    <div class="m-sticky-top">
+        <div class="m-client-banner">
+            <div><?= htmlspecialchars($client['first_name'].' '.$client['last_name']) ?></div>
+            <div style="font-size:11px; font-weight:400; opacity:0.8;"><?= htmlspecialchars($client['base_tone'] ?: 'Bez tónu') ?></div>
         </div>
+        <?php if (!empty($client['allergy_note'])): ?>
+        <div class="m-allergy-banner">
+            <i data-lucide="alert-triangle" style="color:#ef4444; flex-shrink:0;"></i>
+            <div>
+                <span class="m-allergy-title">POZOR: ALERGIE</span>
+                <div class="m-allergy-text"><?= nl2br(htmlspecialchars($client['allergy_note'])) ?></div>
+            </div>
+        </div>
+        <?php endif; ?>
     </div>
-    <?php endif; ?>
 
     <form id="m-form" action="save_visit.php" method="POST">
         <input type="hidden" name="client_id" value="<?= $client_id ?>">
@@ -74,7 +77,6 @@ if ($copy_visit_id > 0) {
         <input type="hidden" name="visit_date" value="<?= date('Y-m-d') ?>">
         
         <div class="m-section-title">RECEPTURA (Misky s barvou)</div>
-        <div id="m-bowls"></div>
         <div id="m-bowls"></div>
         <button type="button" class="m-add-bowl-btn" onclick="addBowl()">+ PŘIDAT NOVOU MISKU</button>
         
@@ -271,8 +273,10 @@ if ($copy_visit_id > 0) {
             lucide.createIcons();
             
             if(confirmNeeded) {
-                // Scroll nahoru na začátek receptury pro kontrolu
-                window.scrollTo({top: 0, behavior: 'smooth'});
+                // Scroll dolů na začátek receptury, aby kadeřník viděl, že se tam něco objevilo
+                const stickyEl = document.querySelector('.m-sticky-top');
+                const offset = (stickyEl ? stickyEl.offsetHeight : 0) + 70;
+                window.scrollTo({top: offset, behavior: 'smooth'});
             }
         }
 
