@@ -23,16 +23,6 @@ $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <link rel="apple-touch-icon" href="icon.png">
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script>
-        // PWA Registration for Mobile
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('✅ Mobilní míchárna připravena'))
-                    .catch(e => console.error('❌ Chyba Service Workera:', e));
-            });
-        }
-    </script>
 </head>
 <body>
     <header class="m-header">
