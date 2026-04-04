@@ -1139,10 +1139,33 @@
                     const data = await response.json();
                     
                     if (data.new_data) {
-                        console.log('Detekována změna (úprava/smazání/přidání)! Obnovuji...');
-                        currentSnapshot = data.snapshot; // Pro jistotu, i když hned reloadujeme
-                        document.body.style.opacity = '0.5';
-                        window.location.reload();
+                        console.log('Detekována změna! Provádím plynulou aktualizaci karty...');
+                        currentSnapshot = data.snapshot; // Aktualizujeme snapshot pro další kontrolu
+                        
+                        // Uděláme kartu lehce průhlednou, aby bylo vidět, že se něco děje
+                        const kartaElement = document.querySelector('.client-karta-box');
+                        if (kartaElement) kartaElement.style.opacity = '0.5';
+                        
+                        try {
+                            const response = await fetch(window.location.href);
+                            const html = await response.text();
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(html, 'text/html');
+                            
+                            const newNode = doc.querySelector('.client-karta-box');
+                            if (newNode && kartaElement) {
+                                kartaElement.innerHTML = newNode.innerHTML;
+                                kartaElement.style.opacity = '1';
+                                // Znovu zinicializujeme ikonky a případné skripty
+                                if (window.lucide) window.lucide.createIcons();
+                                console.log('Karta úspěšně aktualizována bez bliknutí.');
+                            } else {
+                                // Pokud by selhala výměna uzlu, raději reloadneme úplně
+                                window.location.reload();
+                            }
+                        } catch (e) {
+                            window.location.reload();
+                        }
                     }
                 } catch (err) {
                     // Tichá ignorace chyb sítě
