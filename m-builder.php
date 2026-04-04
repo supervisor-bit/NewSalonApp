@@ -9,9 +9,8 @@ $stmt->execute([$client_id]);
 $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
 // Načtení materiálů
-$materials = $pdo->query("SELECT id, brand, category, name FROM materials WHERE is_active = 1 ORDER BY brand, category, name")->fetchAll(PDO::FETCH_ASSOC);
-$materialsData = [];
-foreach($materials as $m) $materialsData[] = $m;
+$materials = $pdo->query("SELECT id, brand, category, name, needs_buying FROM materials WHERE is_active = 1 ORDER BY brand, category, name")->fetchAll(PDO::FETCH_ASSOC);
+$materialsData = $materials;
 
 // Načtení dat k předvyplnění / editaci
 $prefill_bowls = [];
@@ -160,16 +159,24 @@ if ($source_id > 0) {
             return false;
         };
 
-        let bowlCount = 0;
+        let bowlCounter = 0;
 
         function addBowl() {
             const wrap = document.getElementById('m-bowls');
+            const count = wrap.querySelectorAll('.m-bowl').length + 1;
+            const bName = "Miska " + count;
+            
             const bowlDiv = document.createElement('div');
             bowlDiv.className = 'm-bowl';
-            bowlDiv.dataset.index = bowlCount;
+            
+            // Jednoduchý a spolehlivý index pro doručení dat na server
+            const bIdx = bowlCounter++;
+            bowlDiv.dataset.index = bIdx;
+            
             bowlDiv.innerHTML = `
+                <input type="hidden" name="bowl_index[]" value="${bIdx}">
                 <div class="m-bowl-header">
-                    <input type="text" class="m-bowl-title" name="bowl_names[]" value="Miska" onclick="this.select()">
+                    <input type="text" class="m-bowl-title" name="bowl_names[${bIdx}]" value="${bName}" onclick="this.select()">
                     <button type="button" class="m-bowl-del" onclick="this.parentElement.parentElement.remove()">×</button>
                 </div>
                 <div class="m-bowl-rows"></div>
@@ -177,7 +184,11 @@ if ($source_id > 0) {
             `;
             wrap.appendChild(bowlDiv);
             addRow(bowlDiv.querySelector('.m-bowl-rows'), false);
-            bowlCount++;
+            
+            // Plynulé odscrollování na novou misku
+            setTimeout(() => {
+                bowlDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 50);
         }
 
         // Generate a random ID for the radio buttons per bowl
@@ -193,12 +204,19 @@ if ($source_id > 0) {
                     <input type="text" class="m-material-input" placeholder="Hledat odstín (vyberte)..." autocomplete="off">
                     <div class="ac-list"></div>
                 </div>
+                <div class="m-shop-toggle"></div>
                 <input type="number" name="amount_g[${bIdx}][]" class="m-amount-input" placeholder="g">
                 <button type="button" class="m-row-del" onclick="if(this.parentElement.parentElement.children.length > 1) this.parentElement.remove()">×</button>
             `;
             container.appendChild(rowDiv);
             setupAutocomplete(rowDiv.querySelector('.m-material-input'));
-            if(focus) rowDiv.querySelector('.m-material-input').focus();
+            if(focus) {
+                rowDiv.querySelector('.m-material-input').focus();
+                // Na mobilu odscrollovat na nový řádek, aby nebyl schovaný pod klávesnicí
+                setTimeout(() => {
+                    rowDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+            }
         }
 
         function setupAutocomplete(input) {
@@ -227,7 +245,8 @@ if ($source_id > 0) {
                             hidden.value = m.id;
                             input.value = m.category + ' ' + m.name;
                             list.style.display = 'none';
-                            let amountInput = wrap.nextElementSibling;
+                            updateShopIcon(wrap.nextElementSibling, m.id, m.needs_buying);
+                            let amountInput = wrap.nextElementSibling.nextElementSibling;
                             if(amountInput) amountInput.focus();
                         };
                         list.appendChild(div);
@@ -246,17 +265,19 @@ if ($source_id > 0) {
             if(confirmNeeded && !confirm('Opravdu chcete přepsat rozdělaný recept touto historií?')) return;
             
             const wrap = document.getElementById('m-bowls');
-            wrap.innerHTML = ''; // Smazat aktuálně rozdělané misky
+            wrap.innerHTML = ''; 
             let localBowlCount = 0;
             
             for (const [bName, mats] of Object.entries(pastBowls)) {
                 // Přidat misku
+                const bIdx = bowlCounter++;
                 const bowlDiv = document.createElement('div');
                 bowlDiv.className = 'm-bowl';
-                bowlDiv.dataset.index = localBowlCount;
+                bowlDiv.dataset.index = bIdx;
                 bowlDiv.innerHTML = `
+                    <input type="hidden" name="bowl_index[]" value="${bIdx}">
                     <div class="m-bowl-header">
-                        <input type="text" class="m-bowl-title" name="bowl_names[]" value="${bName}" onclick="this.select()">
+                        <input type="text" class="m-bowl-title" name="bowl_names[${bIdx}]" value="${bName}" onclick="this.select()">
                         <button type="button" class="m-bowl-del" onclick="this.parentElement.parentElement.remove()">×</button>
                     </div>
                     <div class="m-bowl-rows"></div>
@@ -271,35 +292,63 @@ if ($source_id > 0) {
                     rowDiv.className = 'm-row';
                     rowDiv.innerHTML = `
                         <div class="m-material-wrap">
-                            <input type="hidden" name="material_id[${localBowlCount}][]" value="${m.id}">
+                            <input type="hidden" name="material_id[${bIdx}][]" value="${m.id}">
                             <input type="text" class="m-material-input" placeholder="Hledat..." autocomplete="off" value="${m.name}">
                             <div class="ac-list"></div>
                         </div>
-                        <input type="number" name="amount_g[${localBowlCount}][]" class="m-amount-input" placeholder="g" value="${m.amt}">
+                        <div class="m-shop-toggle"></div>
+                        <input type="number" name="amount_g[${bIdx}][]" class="m-amount-input" placeholder="g" value="${m.amt}">
                         <button type="button" class="m-row-del" onclick="if(this.parentElement.parentElement.children.length > 1) this.parentElement.remove()">×</button>
                     `;
                     rowsCont.appendChild(rowDiv);
                     setupAutocomplete(rowDiv.querySelector('.m-material-input'));
+                    // Zjistit aktuální stav needs_buying z dat
+                    let matFull = materialsData.find(md => md.id == m.id);
+                    updateShopIcon(rowDiv.querySelector('.m-shop-toggle'), m.id, matFull ? matFull.needs_buying : 0);
                 });
-                localBowlCount++;
             }
             
-            bowlCount = localBowlCount; // Synchronizace s globálním počítadlem
             lucide.createIcons();
             
             if(confirmNeeded) {
-                // Scroll dolů na začátek receptury, aby kadeřník viděl, že se tam něco objevilo
                 const stickyEl = document.querySelector('.m-sticky-top');
                 const offset = (stickyEl ? stickyEl.offsetHeight : 0) + 70;
                 window.scrollTo({top: offset, behavior: 'smooth'});
             }
         }
 
-        // Initialize first bowl
+        function updateShopIcon(container, materialId, needsBuying) {
+            if(!container) return;
+            container.innerHTML = `
+                <button type="button" class="m-btn-shop ${needsBuying ? 'active' : ''}" onclick="toggleShopping(${materialId}, this)">
+                    <i data-lucide="shopping-cart"></i>
+                </button>
+            `;
+            lucide.createIcons();
+        }
+
+        async function toggleShopping(id, btn) {
+            try {
+                const formData = new FormData();
+                formData.append('material_id', id);
+                const resp = await fetch('api_shopping.php', { method: 'POST', body: formData });
+                const json = await resp.json();
+                if(json.success) {
+                    if(json.new_status) btn.classList.add('active');
+                    else btn.classList.remove('active');
+                    
+                    // Aktualizujeme i lokální data, aby se to projevilo u dalších řádků
+                    let mat = materialsData.find(m => m.id == id);
+                    if(mat) mat.needs_buying = json.new_status;
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        // Initialize data
         <?php if (!empty($prefill_bowls)): ?>
             setTimeout(() => {
                 applyPastRecipe(<?= json_encode($prefill_bowls) ?>, false);
-            }, 300);
+            }, 100);
         <?php else: ?>
             addBowl();
         <?php endif; ?>

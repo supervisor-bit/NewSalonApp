@@ -217,6 +217,10 @@ if (!$setup_needed) {
     // Pro formuláře návštěvy chceme jen aktivní
     $materials = array_filter($all_materials, function($m) { return $m['is_active'] == 1; });
     
+    // 4. Seznam k nákupu (Hlídač)
+    $shop_stmt = $pdo->query("SELECT id, brand, category, name FROM materials WHERE needs_buying = 1 ORDER BY brand, category, name");
+    $shopping_list = $shop_stmt->fetchAll();
+    
     // 4. Stahnuti produktu na doma s prioritou podle prodejů
     $pr_stmt = $pdo->query("
         SELECT p.id, p.brand, p.name, p.price, p.is_active, 

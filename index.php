@@ -145,6 +145,12 @@
             <div class="acc-tabs-group" style="background:#f1f5f9; padding:5px; border-radius:15px; width:max-content; display:flex; gap:5px;">
                 <button type="button" id="acc-btn-dnes" class="acc-tab-btn-v2 active" onclick="prepniAccounting('dnes')" style="padding:10px 25px; border-radius:12px; font-weight:700; border:none; cursor:pointer;">Dnešní přehled</button>
                 <button type="button" id="acc-btn-mesic" class="acc-tab-btn-v2" onclick="prepniAccounting('mesic')" style="padding:10px 25px; border-radius:12px; font-weight:700; border:none; cursor:pointer;">Měsíční souhrn & Statistiky</button>
+                <button type="button" id="acc-btn-nakup" class="acc-tab-btn-v2" onclick="prepniAccounting('nakup')" style="padding:10px 25px; border-radius:12px; font-weight:700; border:none; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                    Nákupní seznam
+                    <?php if(count($shopping_list) > 0): ?>
+                        <span style="background:#ef4444; color:#fff; font-size:10px; padding:2px 6px; border-radius:10px;"><?= count($shopping_list) ?></span>
+                    <?php endif; ?>
+                </button>
             </div>
         </div>
 
@@ -189,6 +195,42 @@
                                 <div class="note"><?= $tv['note'] ?: 'Základní ošetření' ?></div>
                             </div>
                             <div class="row-amount"><?= number_format($tv['price'], 0, ',', ' ') ?> Kč</div>
+                        </div>
+                    <?php endforeach; endif; ?>
+                </div>
+            </div>
+            
+            <!-- VIEW: NÁKUPNÍ SEZNAM (HLÍDAČ) -->
+            <div id="acc-view-nakup" class="acc-view" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <h3 class="sekce-nadpis" style="margin:0;">Věci k nákupu (Hlídač)</h3>
+                    <div style="background:#fef2f2; border:1px solid #fee2e2; color:#be123c; padding:8px 15px; border-radius:10px; font-size:13px; font-weight:600; display:flex; align-items:center; gap:8px;">
+                        <i data-lucide="shopping-cart" style="width:16px;height:16px;"></i>
+                        Aktuálně chybí <?= count($shopping_list) ?> položek
+                    </div>
+                </div>
+                
+                <div class="acc-list-premium">
+                    <?php if(empty($shopping_list)): ?>
+                        <div style="padding:80px 40px; text-align:center; background:#fff; border-radius:24px; border:2px dashed #e2e8f0;">
+                            <div style="background:#f1f5f9; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
+                                <i data-lucide="check-circle-2" style="width:30px; height:30px; color:#10b981;"></i>
+                            </div>
+                            <h4 style="font-family:'Outfit'; font-size:20px; color:var(--primary); margin-bottom:8px;">Všechno máme!</h4>
+                            <p style="color:#64748b; font-size:14px; margin:0;">Nákupní lístek je momentálně prázdný.</p>
+                        </div>
+                    <?php else: foreach($shopping_list as $sl): ?>
+                        <div class="acc-row-v2" style="padding:18px 25px;">
+                            <div class="row-avatar" style="background:#fff7ed; color:#f97316;">
+                                <i data-lucide="package" style="width:18px;height:18px;"></i>
+                            </div>
+                            <div class="row-info">
+                                <div class="name" style="font-size:18px;"><?= htmlspecialchars($sl['name']) ?></div>
+                                <div class="note" style="font-size:12px; text-transform:uppercase; font-weight:600; letter-spacing:0.5px;"><?= htmlspecialchars($sl['category']) ?> (<?= htmlspecialchars($sl['brand']) ?>)</div>
+                            </div>
+                            <button type="button" class="btn-ulozit" onclick="odebratZNakupu(<?= $sl['id'] ?>, this)" style="background:#f1f5f9; color:var(--primary); border:none; padding:10px 20px; font-size:13px; font-weight:700; border-radius:10px; display:flex; align-items:center; gap:8px; margin:0;">
+                                <i data-lucide="check" style="width:16px;height:16px;color:#10b981;"></i> Označit jako koupené
+                            </button>
                         </div>
                     <?php endforeach; endif; ?>
                 </div>

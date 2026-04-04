@@ -48,13 +48,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $visit_id = $pdo->lastInsertId();
         }
         
-        $bowl_names = $_POST['bowl_names'] ?? [];
+        $bowl_indices = $_POST['bowl_index'] ?? [];
         $f_stmt = $pdo->prepare("INSERT INTO formulas (visit_id, material_id, amount_g, bowl_name) VALUES (?, ?, ?, ?)");
         
-        foreach ($bowl_names as $bIndex => $bName) {
+        foreach ($bowl_indices as $bIdx) {
+            $bName = $_POST['bowl_names'][$bIdx] ?? 'Miska';
             if (empty($bName)) continue;
-            $materials = $_POST['material_id'][$bIndex] ?? [];
-            $amounts = $_POST['amount_g'][$bIndex] ?? [];
+            
+            $materials = $_POST['material_id'][$bIdx] ?? [];
+            $amounts = $_POST['amount_g'][$bIdx] ?? [];
+            
             for ($i = 0; $i < count($materials); $i++) {
                 if (!empty($materials[$i]) && (!empty($amounts[$i]) || $amounts[$i] === '0')) {
                     $f_stmt->execute([$visit_id, $materials[$i], $amounts[$i], $bName]);

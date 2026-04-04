@@ -83,11 +83,30 @@
         if(pohled === 'dnes') {
             document.getElementById('acc-btn-dnes').classList.add('active');
             document.getElementById('acc-view-dnes').style.display = 'block';
+        } else if(pohled === 'nakup') {
+            document.getElementById('acc-btn-nakup').classList.add('active');
+            document.getElementById('acc-view-nakup').style.display = 'block';
         } else {
             document.getElementById('acc-btn-mesic').classList.add('active');
             document.getElementById('acc-view-mesic').style.display = 'block';
         }
         lucide.createIcons();
+    }
+
+    async function odebratZNakupu(id, btn) {
+        try {
+            const formData = new FormData();
+            formData.append('material_id', id);
+            const resp = await fetch('api_shopping.php', { method: 'POST', body: formData });
+            const json = await resp.json();
+            if(json.success && !json.new_status) {
+                // Položka byla odebrána (stav je 0)
+                const row = btn.closest('.acc-row-v2');
+                row.style.opacity = '0.3';
+                row.style.pointerEvents = 'none';
+                setTimeout(() => row.remove(), 400);
+            }
+        } catch(e) { console.error(e); }
     }
 
     function prepniSettings(tabId) {
@@ -223,8 +242,9 @@
         if (!bowlName) {
             setTimeout(() => {
                 finalContainer.scrollIntoView({ behavior: "smooth", block: "center" });
-                let s = finalContainer.querySelector('.material-search'); if(s) s.focus({preventScroll: true});
-            }, 60);
+                let s = finalContainer.querySelector('.material-search'); 
+                if(s) s.focus({preventScroll: true});
+            }, 100);
         }
         
         return { containerUl: finalContainer.querySelector('.bowl-rows-container'), index: bIndex };
@@ -480,20 +500,24 @@
                     let pw = bowlContainer.parentElement.id;
                     if (pw) pridatMisku(pw);
                 } else {
-                    pridatRadekKMisaceBtn(btn);
-                    setTimeout(() => {
-                        let l = rowsWrap.lastElementChild;
-                        if(l) {
-                            l.scrollIntoView({behavior: "smooth", block: "center"});
-                            let input = l.querySelector('.material-search');
-                            if(input) input.focus({preventScroll: true});
-                        }
-                    }, 40);
+                    pridatRadekKMisaceBtn(btn, '', '', true);
                 }
             }
         });
 
         rowsWrap.appendChild(rTpl);
+
+        // Plynulé odscrollování u nového řádku (pokud nevkládáme z historie)
+        if (!matId || arguments[3] === true) {
+            setTimeout(() => {
+                const last = rowsWrap.lastElementChild;
+                if(last) {
+                    last.scrollIntoView({ behavior: "smooth", block: "center" });
+                    const sInput = last.querySelector('.material-search');
+                    if(sInput) sInput.focus({preventScroll: true});
+                }
+            }, 50);
+        }
     }
 
     // ÚPRAVA NÁVŠTĚVY - RECEPTURY A PRODUKTY
@@ -667,6 +691,16 @@
         });
 
         wrapper.appendChild(tpl);
+        
+        // Plynulé odscrollování na nový produkt
+        if (!productId) {
+            setTimeout(() => {
+                wrapper.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                let s = wrapper.lastElementChild.querySelector('.product-search');
+                if(s) s.focus({preventScroll: true});
+            }, 100);
+        }
+        
         lucide.createIcons();
     }
     
