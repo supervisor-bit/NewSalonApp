@@ -1094,5 +1094,59 @@
         });
     </script>
     <?php endif; ?>
+
+    <!-- LIVE SYNC: Automatické hlídání změn z mobilu -->
+    <?php if (isset($active_client) && $active_client): ?>
+    <script>
+        (function() {
+            // Zjistíme nejvyšší ID návštěvy, které aktuálně vidíme
+            // Použijeme PHP k vytažení max ID z pole $visits
+            <?php 
+                $max_id = 0;
+                if (!empty($visits)) {
+                    foreach ($visits as $v) {
+                        if ((int)$v['id'] > $max_id) $max_id = (int)$v['id'];
+                    }
+                }
+            ?>
+            const lastVisitId = <?= $max_id ?>;
+            const clientId = <?= (int)$active_client['id'] ?>;
+            
+            setInterval(async () => {
+                // Seznam prvků, které signalizují, že uživatel něco píše nebo upravuje
+                const editors = [
+                    document.getElementById('new-visit-box'),
+                    document.getElementById('edit-visit-box'),
+                    document.getElementById('checkout-modal'),
+                    document.getElementById('edit-client-profile-modal'),
+                    document.getElementById('edit-diagnostics-modal')
+                ];
+                
+                // Pokud je některý z editorů viditelný, nebudeme obnovovat (nechceme smazat rozdělanou práci)
+                const isWriting = editors.some(ed => {
+                    if (!ed) return false;
+                    const style = window.getComputedStyle(ed);
+                    return style.display !== 'none';
+                });
+
+                if (isWriting) return;
+
+                try {
+                    const response = await fetch(`pulse_check.php?client_id=${clientId}&last_id=${lastVisitId}`);
+                    const data = await response.json();
+                    
+                    if (data.new_data) {
+                        console.log('Detekována nová data z mobilu! Obnovuji kartu klientky...');
+                        // Přidáme lehké ztmavení pro vizuální potvrzení, že se něco děje
+                        document.body.style.opacity = '0.5';
+                        window.location.reload();
+                    }
+                } catch (err) {
+                    // Tichá ignorace chyb sítě
+                }
+            }, 5000); // Kontrola každých 5 vteřin
+        })();
+    </script>
+    <?php endif; ?>
 </body>
 </html>
