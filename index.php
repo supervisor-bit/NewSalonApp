@@ -485,6 +485,19 @@
                             </button>
                         </div>
                     </form>
+
+                    <div class="sekce" style="margin-top: 40px; border-top: 1px dashed #cbd5e1; padding-top: 30px;">
+                        <span class="sekce-nadpis" style="display:flex; align-items:center; gap:8px;">
+                            <i data-lucide="shield-check" style="width:20px;height:20px;color:#10b981;"></i> Zabezpečení a Zálohy
+                        </span>
+                        <p style="color:#64748b; font-size:13px; line-height:1.5; margin-bottom:15px;">
+                            Pro váš maximální klid si můžete kdykoliv stáhnout kompletní kopii celé databáze (klientky, návštěvy, použité barvy). V případě potřeby z ní dokážeme systém obnovit přesně do tohoto stavu.
+                        </p>
+                        <a href="backup_db.php" class="btn-ulozit" style="background:#0f172a; display:inline-flex; align-items:center; justify-content:center; gap:8px; text-decoration:none; padding:12px 20px; width:100%; border-radius:10px;">
+                            <i data-lucide="download-cloud" style="width:18px;height:18px;"></i>
+                            Stáhnout zálohu databáze (.sql)
+                        </a>
+                    </div>
                 </div>
             </div>
 
