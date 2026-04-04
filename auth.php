@@ -65,11 +65,20 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     if (!in_array($current_page, $allowed_pages)) {
+        $requested_path = $_SERVER['REQUEST_URI'] ?? $current_page;
+        $requested_path = ltrim($requested_path, '/');
+
+        if ($requested_path === '' || strpos($requested_path, 'login.php') === 0) {
+            $requested_path = 'index.php';
+        }
+
+        $login_url = 'login.php?redirect=' . rawurlencode($requested_path);
+
         if (!headers_sent()) {
-            header("Location: login.php");
+            header('Location: ' . $login_url);
             exit;
         } else {
-            echo '<script>window.location.href="login.php";</script>';
+            echo '<script>window.location.href=' . json_encode($login_url) . ';</script>';
             exit;
         }
     }

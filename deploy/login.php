@@ -23,12 +23,39 @@ if (!headers_sent()) {
 
 require 'db.php';
 
+$user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+$is_mobile_client = preg_match('/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i', $user_agent) === 1;
+$default_redirect = $is_mobile_client ? 'm-index.php' : 'index.php';
+
+$redirect_target = $_GET['redirect'] ?? $_POST['redirect'] ?? $default_redirect;
+$redirect_target = trim((string)$redirect_target);
+
+if (
+    $redirect_target === '' ||
+    preg_match('#^(?:[a-z][a-z0-9+\-.]*:)?//#i', $redirect_target) ||
+    strpos($redirect_target, "\r") !== false ||
+    strpos($redirect_target, "\n") !== false
+) {
+    $redirect_target = $default_redirect;
+}
+
+$redirect_target = ltrim($redirect_target, '/');
+if ($redirect_target === '' || strpos($redirect_target, 'login.php') === 0) {
+    $redirect_target = $default_redirect;
+}
+
+if (!empty($_SESSION['logged_in']) && $_SESSION['logged_in'] === true && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Location: ' . $redirect_target);
+    exit;
+}
+
 // Zkontrolujeme, zda v DB existuje alespoň jeden uživatel
 $stmt = $pdo->query("SELECT COUNT(*) FROM users");
 $user_count = $stmt->fetchColumn();
 
 $error = "";
 $success = "";
+$show_http_notice = !$is_https;
 
 // Zpracování formuláře
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -59,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (empty($_SESSION['csrf_token'])) {
                 $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
             }
-            header("Location: index.php");
+            header('Location: ' . $redirect_target);
             exit;
         } else {
             $error = "Nesprávné jméno nebo heslo.";
@@ -155,6 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         .error { background: #fee2e2; color: #ef4444; padding: 12px; border-radius: 10px; font-size: 13px; margin-bottom: 20px; font-weight: 600; }
         .success { background: #d1fae5; color: #10b981; padding: 12px; border-radius: 10px; font-size: 13px; margin-bottom: 20px; font-weight: 600; }
+        .warning { background: #fff7ed; color: #9a3412; padding: 12px; border-radius: 10px; font-size: 13px; margin-bottom: 20px; font-weight: 600; border: 1px solid #fed7aa; }
     </style>
 </head>
 <body>
@@ -174,15 +202,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <?php if ($error): ?><div class="error"><?= $error ?></div><?php endif; ?>
     <?php if ($success): ?><div class="success"><?= $success ?></div><?php endif; ?>
+    <?php if ($show_http_notice): ?>
+        <div class="warning">Lokální test běží přes HTTP, takže Chrome na mobilu může ukázat upozornění na nezabezpečené odeslání. Pro ostrý provoz použij HTTPS.</div>
+    <?php endif; ?>
 
-    <form method="POST">
+    <form method="POST" autocomplete="on">
+        <input type="hidden" name="redirect" value="<?= htmlspecialchars($redirect_target, ENT_QUOTES, 'UTF-8') ?>">
         <div class="form-group">
             <label>Uživatelské jméno</label>
-            <input type="text" name="username" placeholder="Např. salon" required autofocus>
+            <input type="text" name="username" placeholder="Např. salon" required autofocus autocomplete="username">
         </div>
         <div class="form-group">
             <label>Heslo</label>
-            <input type="password" name="password" placeholder="••••••••" required>
+            <input type="password" name="password" placeholder="••••••••" required autocomplete="current-password">
         </div>
         <button type="submit" class="btn-login">
             <i data-lucide="<?= ($user_count == 0) ? 'user-plus' : 'log-in' ?>" style="width:20px; height:20px;"></i>
