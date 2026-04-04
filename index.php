@@ -1102,14 +1102,17 @@
             // Zjistíme nejvyšší ID návštěvy, které aktuálně vidíme
             // Použijeme PHP k vytažení max ID z pole $visits
             <?php 
+                $v_cnt = count($visits);
                 $max_id = 0;
-                if (!empty($visits)) {
-                    foreach ($visits as $v) {
-                        if ((int)$v['id'] > $max_id) $max_id = (int)$v['id'];
-                    }
-                }
+                foreach ($visits as $v) if ((int)$v['id'] > $max_id) $max_id = (int)$v['id'];
+                
+                $f_stmt = $pdo->prepare("SELECT MAX(id) as max_f FROM formulas WHERE visit_id IN (SELECT id FROM visits WHERE client_id = ?)");
+                $f_stmt->execute([(int)$active_client['id']]);
+                $max_f = (int)($f_stmt->fetchColumn() ?: 0);
+                
+                $initial_snapshot = $v_cnt . "_" . $max_id . "_" . $max_f;
             ?>
-            const lastVisitId = <?= $max_id ?>;
+            let currentSnapshot = '<?= $initial_snapshot ?>';
             const clientId = <?= (int)$active_client['id'] ?>;
             
             setInterval(async () => {
@@ -1132,12 +1135,12 @@
                 if (isWriting) return;
 
                 try {
-                    const response = await fetch(`pulse_check.php?client_id=${clientId}&last_id=${lastVisitId}`);
+                    const response = await fetch(`pulse_check.php?client_id=${clientId}&snapshot=${currentSnapshot}`);
                     const data = await response.json();
                     
                     if (data.new_data) {
-                        console.log('Detekována nová data z mobilu! Obnovuji kartu klientky...');
-                        // Přidáme lehké ztmavení pro vizuální potvrzení, že se něco děje
+                        console.log('Detekována změna (úprava/smazání/přidání)! Obnovuji...');
+                        currentSnapshot = data.snapshot; // Pro jistotu, i když hned reloadujeme
                         document.body.style.opacity = '0.5';
                         window.location.reload();
                     }
