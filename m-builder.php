@@ -15,7 +15,7 @@ foreach($materials as $m) $materialsData[] = $m;
 
 // Načtení dat k předvyplnění (pokud kopírujeme z historie)
 $prefill_bowls = [];
-$copy_visit_id = (int)($_GET['copy_visit_id'] ?? 0);
+$copy_visit_id = (int)($_GET['cv_id'] ?? 0);
 if ($copy_visit_id > 0) {
     $cv_stmt = $pdo->prepare("
         SELECT f.bowl_name, f.material_id, f.amount_g, m.category as m_cat, m.name as m_name 

@@ -165,7 +165,7 @@ foreach($raw_past as $rp) {
                             </div>
                         <?php endforeach; ?>
                         
-                        <a href="m-builder.php?client_id=<?= $client_id ?>&copy_visit_id=<?= $v['id'] ?>" class="m-btn-copy" style="margin-top:10px;">
+                        <a href="m-builder.php?client_id=<?= $client_id ?>&cv_id=<?= $v['id'] ?>" class="m-btn-copy" style="margin-top:10px;">
                             <i data-lucide="copy" style="width:14px;height:14px;"></i> Zopakovat do nové míchárny
                         </a>
                     </div>
