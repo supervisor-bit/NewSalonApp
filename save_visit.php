@@ -64,7 +64,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['msg'] = "Chyba při ukládání: " . $e->getMessage();
     }
 
-    header("Location: index.php?client_id=" . $client_id);
+    if (!empty($_POST['mobile'])) {
+        header("Location: m-index.php?success=1");
+    } else {
+        header("Location: index.php?client_id=" . $client_id);
+    }
     exit;
 }
 header("Location: index.php");

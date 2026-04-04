@@ -1,0 +1,169 @@
+<?php require_once 'auth.php'; ?>
+<?php
+require_once 'db.php';
+$client_id = (int)($_GET['client_id'] ?? 0);
+if (!$client_id) { header("Location: m-index.php"); exit; }
+
+$stmt = $pdo->prepare("SELECT first_name, last_name, hair_texture, hair_condition, base_tone, gray_percentage FROM clients WHERE id = ?");
+$stmt->execute([$client_id]);
+$client = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// Načtení materiálů
+$materials = $pdo->query("SELECT id, brand, line, name, code, type FROM materials WHERE is_active = 1 ORDER BY brand, line, CAST(code AS UNSIGNED), code, name")->fetchAll();
+$materialsData = [];
+foreach($materials as $m) $materialsData[] = $m;
+?>
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Skládač Receptur</title>
+    <link rel="stylesheet" href="m-style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <header class="m-header">
+        <a href="m-index.php"><i data-lucide="arrow-left"></i></a>
+        <div style="text-align:center; flex:1;">
+            <div style="font-size:16px; font-weight:700; font-family:'Outfit';"><?= htmlspecialchars($client['first_name'].' '.$client['last_name']) ?></div>
+            <div style="font-size:11px; color:#94a3b8;"><?= mb_strimwidth($client['base_tone'] ?: 'Neznámý výchozí tón', 0, 20, "...") ?></div>
+        </div>
+        <div style="width:24px;"></div>
+    </header>
+
+    <form id="m-form" action="save_visit.php" method="POST">
+        <input type="hidden" name="client_id" value="<?= $client_id ?>">
+        <input type="hidden" name="mobile" value="1">
+        <input type="hidden" name="visit_date" value="<?= date('Y-m-d') ?>">
+        
+        <div class="m-section-title">RECEPTURA (Misky s barvou)</div>
+        <div id="m-bowls"></div>
+        <button type="button" class="m-add-bowl-btn" onclick="addBowl()">+ PŘIDAT NOVOU MISKU</button>
+        
+        <!-- Služby, co kadeřník udělal -->
+        <div class="m-section-title">PROVEDENÉ SLUŽBY</div>
+        <div style="background:#fff; border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:0 16px;">
+            <label style="display:flex; justify-content:space-between; align-items:center; padding:16px 0; border-bottom:1px solid #f1f5f9;">
+                <span style="font-weight:600;">Střih (Trim)</span>
+                <input type="checkbox" name="s_trim" style="transform: scale(1.5);">
+            </label>
+            <label style="display:flex; justify-content:space-between; align-items:center; padding:16px 0; border-bottom:1px solid #f1f5f9;">
+                <span style="font-weight:600;">Foukaná (Blow-dry)</span>
+                <input type="checkbox" name="s_blow" style="transform: scale(1.5);">
+            </label>
+            <label style="display:flex; justify-content:space-between; align-items:center; padding:16px 0; border-bottom:1px solid #f1f5f9;">
+                <span style="font-weight:600;">Kúry / Metal Detox</span>
+                <input type="checkbox" name="s_metal_detox" style="transform: scale(1.5);">
+            </label>
+            <label style="display:flex; justify-content:space-between; align-items:center; padding:16px 0;">
+                <span style="font-weight:600;">Žehlení / Vlny</span>
+                <input type="checkbox" name="s_iron" style="transform: scale(1.5);">
+            </label>
+        </div>
+
+        <div class="m-bottom-bar">
+            <button type="submit" class="btn-save-mobile">ULOŽIT DO KARTY ZÁKAZNICE</button>
+        </div>
+    </form>
+
+    <script>
+        lucide.createIcons();
+        const materialsData = <?= json_encode($materialsData) ?>;
+        
+        document.getElementById('m-form').onsubmit = function(e) {
+            let activeDrop = document.querySelector('.ac-list[style*="display: block"]');
+            if(activeDrop) {
+                e.preventDefault();
+                activeDrop.style.display = 'none';
+                return false;
+            }
+        };
+
+        let bowlCount = 0;
+
+        function addBowl() {
+            const wrap = document.getElementById('m-bowls');
+            const bowlDiv = document.createElement('div');
+            bowlDiv.className = 'm-bowl';
+            bowlDiv.dataset.index = bowlCount;
+            bowlDiv.innerHTML = `
+                <div class="m-bowl-header">
+                    <input type="text" class="m-bowl-title" name="bowl_names[]" value="Miska" onclick="this.select()">
+                    <button type="button" class="m-bowl-del" onclick="this.parentElement.parentElement.remove()">×</button>
+                </div>
+                <div class="m-bowl-rows"></div>
+                <button type="button" class="m-add-row-btn" onclick="addRow(this.previousElementSibling, true)">+ Přidat barvu / oxidant</button>
+            `;
+            wrap.appendChild(bowlDiv);
+            addRow(bowlDiv.querySelector('.m-bowl-rows'), false);
+            bowlCount++;
+        }
+
+        // Generate a random ID for the radio buttons per bowl
+        function generateId() { return Math.random().toString(36).substr(2, 9); }
+
+        function addRow(container, focus = false) {
+            let bIdx = container.parentElement.dataset.index;
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'm-row';
+            rowDiv.innerHTML = `
+                <div class="m-material-wrap">
+                    <input type="hidden" name="material_id[${bIdx}][]">
+                    <input type="text" class="m-material-input" placeholder="Hledat odstín (vyberte)..." autocomplete="off">
+                    <div class="ac-list"></div>
+                </div>
+                <input type="number" name="amount_g[${bIdx}][]" class="m-amount-input" placeholder="g">
+                <button type="button" class="m-row-del" onclick="if(this.parentElement.parentElement.children.length > 1) this.parentElement.remove()">×</button>
+            `;
+            container.appendChild(rowDiv);
+            setupAutocomplete(rowDiv.querySelector('.m-material-input'));
+            if(focus) rowDiv.querySelector('.m-material-input').focus();
+        }
+
+        function setupAutocomplete(input) {
+            const wrap = input.parentElement;
+            const hidden = wrap.querySelector('input[type="hidden"]');
+            const list = wrap.querySelector('.ac-list');
+
+            input.addEventListener('input', function() {
+                const val = this.value.toLowerCase().trim();
+                list.innerHTML = '';
+                if(!val) { list.style.display = 'none'; return; }
+                
+                let matches = materialsData.filter(m => {
+                    let text = ` ${m.brand} ${m.line} ${m.code} ${m.name}`.toLowerCase();
+                    let terms = val.split(" ");
+                    return terms.every(t => text.includes(t));
+                }).slice(0, 15);
+                
+                if(matches.length > 0) {
+                    matches.forEach(m => {
+                        let div = document.createElement('div');
+                        div.className = 'ac-item';
+                        div.innerHTML = `<strong style="color:var(--primary);">${m.code}</strong> ${m.name} <span style="color:#94a3b8; font-size:11px;">(${m.line})</span>`;
+                        div.onmousedown = function(e) {
+                            e.preventDefault();
+                            hidden.value = m.id;
+                            input.value = m.code ? (m.code + ' ' + m.name) : m.name;
+                            list.style.display = 'none';
+                            let amountInput = wrap.nextElementSibling;
+                            if(amountInput) amountInput.focus();
+                        };
+                        list.appendChild(div);
+                    });
+                    list.style.display = 'block';
+                } else {
+                    list.style.display = 'none';
+                }
+            });
+
+            input.addEventListener('blur', () => { setTimeout(() => { list.style.display = 'none'; }, 200); });
+            input.addEventListener('focus', () => { if(input.value) input.dispatchEvent(new Event('input')); });
+        }
+
+        // Initialize first bowl
+        addBowl();
+    </script>
+</body>
+</html>
