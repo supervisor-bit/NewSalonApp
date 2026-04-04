@@ -1,0 +1,17 @@
+{
+  "name": "Kadeřnická KARTA",
+  "short_name": "KARTA",
+  "description": "Mobilní míchárna pro kadeřnický salon",
+  "start_url": "m-index.php",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

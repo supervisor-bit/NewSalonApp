@@ -4,7 +4,7 @@ require_once 'db.php';
 $client_id = (int)($_GET['client_id'] ?? 0);
 if (!$client_id) { header("Location: m-index.php"); exit; }
 
-$stmt = $pdo->prepare("SELECT first_name, last_name, hair_texture, hair_condition, base_tone, gray_percentage FROM clients WHERE id = ?");
+$stmt = $pdo->prepare("SELECT first_name, last_name, hair_texture, hair_condition, base_tone, gray_percentage, allergy FROM clients WHERE id = ?");
 $stmt->execute([$client_id]);
 $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -13,38 +13,27 @@ $materials = $pdo->query("SELECT id, brand, category, name FROM materials WHERE 
 $materialsData = [];
 foreach($materials as $m) $materialsData[] = $m;
 
-// Načtení POSLEDNÍCH RECEPTUR (max 3)
-$past_stmt = $pdo->prepare("
-    SELECT v.id, v.visit_date, v.note, f.bowl_name, f.material_id, f.amount_g, m.category as m_cat, m.name as m_name 
-    FROM visits v 
-    JOIN formulas f ON v.id = f.visit_id 
-    JOIN materials m ON f.material_id = m.id 
-    WHERE v.client_id = ? 
-    ORDER BY v.visit_date DESC, v.id DESC LIMIT 50
-");
-$past_stmt->execute([$client_id]);
-$raw_past = $past_stmt->fetchAll(PDO::FETCH_ASSOC);
-
-$past_visits = [];
-foreach($raw_past as $rp) {
-    $vid = $rp['id'];
-    if(!isset($past_visits[$vid])) {
-        $past_visits[$vid] = [
-            'id' => $vid,
-            'date' => date('d.m.', strtotime($rp['visit_date'])),
-            'note' => $rp['note'],
-            'bowls' => []
+// Načtení dat k předvyplnění (pokud kopírujeme z historie)
+$prefill_bowls = [];
+$copy_visit_id = (int)($_GET['copy_visit_id'] ?? 0);
+if ($copy_visit_id > 0) {
+    $cv_stmt = $pdo->prepare("
+        SELECT f.bowl_name, f.material_id, f.amount_g, m.category as m_cat, m.name as m_name 
+        FROM formulas f
+        JOIN materials m ON f.material_id = m.id
+        WHERE f.visit_id = ?
+    ");
+    $cv_stmt->execute([$copy_visit_id]);
+    foreach ($cv_stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $bn = $row['bowl_name'] ?: 'Miska';
+        if (!isset($prefill_bowls[$bn])) $prefill_bowls[$bn] = [];
+        $prefill_bowls[$bn][] = [
+            'id' => $row['material_id'],
+            'name' => $row['m_cat'].' '.$row['m_name'],
+            'amt' => $row['amount_g']
         ];
     }
-    $bn = $rp['bowl_name'] ?: 'Miska';
-    if(!isset($past_visits[$vid]['bowls'][$bn])) $past_visits[$vid]['bowls'][$bn] = [];
-    $past_visits[$vid]['bowls'][$bn][] = [
-        'id' => $rp['material_id'], 
-        'name' => $rp['m_cat'].' '.$rp['m_name'], 
-        'amt' => $rp['amount_g']
-    ];
 }
-$past_visits = array_slice(array_values($past_visits), 0, 3);
 ?>
 <!DOCTYPE html>
 <html lang="cs">
@@ -53,17 +42,31 @@ $past_visits = array_slice(array_values($past_visits), 0, 3);
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Skládač Receptur</title>
     <link rel="stylesheet" href="m-style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon" href="icon.png">
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
     <header class="m-header">
-        <a href="m-index.php"><i data-lucide="arrow-left"></i></a>
+        <a href="m-history.php?client_id=<?= $client_id ?>"><i data-lucide="arrow-left"></i></a>
         <div style="text-align:center; flex:1;">
             <div style="font-size:16px; font-weight:700; font-family:'Outfit';"><?= htmlspecialchars($client['first_name'].' '.$client['last_name']) ?></div>
             <div style="font-size:11px; color:#94a3b8;"><?= mb_strimwidth($client['base_tone'] ?: 'Neznámý výchozí tón', 0, 20, "...") ?></div>
         </div>
         <div style="width:24px;"></div>
     </header>
+
+    <?php if (!empty($client['allergy'])): ?>
+    <div class="m-allergy-banner">
+        <i data-lucide="alert-triangle" style="color:#ef4444; flex-shrink:0;"></i>
+        <div>
+            <span class="m-allergy-title">POZOR: ALERGIE</span>
+            <div class="m-allergy-text"><?= nl2br(htmlspecialchars($client['allergy'])) ?></div>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <form id="m-form" action="save_visit.php" method="POST">
         <input type="hidden" name="client_id" value="<?= $client_id ?>">
@@ -72,36 +75,8 @@ $past_visits = array_slice(array_values($past_visits), 0, 3);
         
         <div class="m-section-title">RECEPTURA (Misky s barvou)</div>
         <div id="m-bowls"></div>
+        <div id="m-bowls"></div>
         <button type="button" class="m-add-bowl-btn" onclick="addBowl()">+ PŘIDAT NOVOU MISKU</button>
-
-        <?php if (!empty($past_visits)): ?>
-        <div class="m-section-title">HISTORIE RECEPTUR (Zopakovat)</div>
-        <div class="m-history">
-            <?php foreach ($past_visits as $pv): ?>
-                <div class="m-history-card">
-                    <div class="m-history-date">
-                        <i data-lucide="calendar" style="width:14px;height:14px;"></i> <?= $pv['date'] ?>
-                    </div>
-                    <?php if ($pv['note']): ?>
-                        <div class="m-history-note"><?= nl2br(htmlspecialchars($pv['note'])) ?></div>
-                    <?php endif; ?>
-                    <div class="m-history-summary">
-                        <?php 
-                        $summary = [];
-                        foreach ($pv['bowls'] as $bName => $mats) {
-                            $mTexts = array_map(fn($m) => htmlspecialchars($m['name']).' ('.$m['amt'].'g)', $mats);
-                            $summary[] = "<strong>".htmlspecialchars($bName).":</strong> " . implode(', ', $mTexts);
-                        }
-                        echo implode('<br>', $summary);
-                        ?>
-                    </div>
-                    <button type="button" class="m-btn-copy" onclick='applyPastRecipe(<?= json_encode($pv['bowls']) ?>)'>
-                        <i data-lucide="copy" style="width:14px;height:14px;"></i> Zopakovat tyto barvy
-                    </button>
-                </div>
-            <?php endforeach; ?>
-        </div>
-        <?php endif; ?>
         
         <!-- Služby, co kadeřník udělal -->
         <div class="m-section-title">PROVEDENÉ SLUŽBY</div>
@@ -250,12 +225,11 @@ $past_visits = array_slice(array_values($past_visits), 0, 3);
             input.addEventListener('focus', () => { if(input.value) input.dispatchEvent(new Event('input')); });
         }
 
-        function applyPastRecipe(pastBowls) {
-            if(!confirm('Opravdu chcete přepsat rozdělaný recept touto historií?')) return;
+        function applyPastRecipe(pastBowls, confirmNeeded = true) {
+            if(confirmNeeded && !confirm('Opravdu chcete přepsat rozdělaný recept touto historií?')) return;
             
             const wrap = document.getElementById('m-bowls');
             wrap.innerHTML = ''; // Smazat aktuálně rozdělané misky
-            bowlStatus = 0; // Reset počítadla (lokálně pro tuto funkci použijeme bowlCount)
             let localBowlCount = 0;
             
             for (const [bName, mats] of Object.entries(pastBowls)) {
@@ -296,12 +270,18 @@ $past_visits = array_slice(array_values($past_visits), 0, 3);
             bowlCount = localBowlCount; // Synchronizace s globálním počítadlem
             lucide.createIcons();
             
-            // Scroll nahoru na začátek receptury pro kontrolu
-            window.scrollTo({top: 0, behavior: 'smooth'});
+            if(confirmNeeded) {
+                // Scroll nahoru na začátek receptury pro kontrolu
+                window.scrollTo({top: 0, behavior: 'smooth'});
+            }
         }
 
         // Initialize first bowl
-        addBowl();
+        <?php if (!empty($prefill_bowls)): ?>
+            applyPastRecipe(<?= json_encode($prefill_bowls) ?>, false);
+        <?php else: ?>
+            addBowl();
+        <?php endif; ?>
     </script>
 </body>
 </html>

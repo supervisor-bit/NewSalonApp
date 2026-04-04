@@ -49,6 +49,10 @@ foreach($raw_past as $rp) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Historie - <?= htmlspecialchars($client['first_name'].' '.$client['last_name']) ?></title>
     <link rel="stylesheet" href="m-style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon" href="icon.png">
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         .m-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 16px; background: #fff; border-bottom: 1px solid var(--border); }
@@ -98,6 +102,16 @@ foreach($raw_past as $rp) {
         <h2 style="font-size:24px; margin-bottom:4px;"><?= htmlspecialchars($client['last_name'].' '.$client['first_name']) ?></h2>
         <div style="font-size:13px; opacity:0.7;"><?= htmlspecialchars($client['phone'] ?: 'Bez telefonu') ?></div>
     </div>
+
+    <?php if (!empty($client['allergy'])): ?>
+    <div class="m-allergy-banner">
+        <i data-lucide="alert-triangle" style="color:#ef4444; flex-shrink:0;"></i>
+        <div>
+            <span class="m-allergy-title">POZOR: ALERGIE</span>
+            <div class="m-allergy-text"><?= nl2br(htmlspecialchars($client['allergy'])) ?></div>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- Rychlá diagnostika -->
     <div class="m-info-grid">
