@@ -31,11 +31,11 @@ $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <ul class="m-client-list" id="client-list">
         <?php foreach ($clients as $c): ?>
-            <a href="m-builder.php?client_id=<?= $c['id'] ?>" class="m-client-item" data-name="<?= mb_strtolower($c['last_name'].' '.$c['first_name']) ?>">
+            <a href="m-history.php?client_id=<?= $c['id'] ?>" class="m-client-item" data-name="<?= mb_strtolower($c['last_name'].' '.$c['first_name']) ?>">
                 <div>
                     <div class="m-client-name"><?= htmlspecialchars($c['last_name'] . ' ' . $c['first_name']) ?></div>
                     <div class="m-client-date">
-                        <i data-lucide="calendar" style="width:12px;height:12px;vertical-align:middle;"></i> 
+                        <i data-lucide="clock" style="width:12px;height:12px;vertical-align:middle;"></i> 
                         <?= $c['last_visit_date'] ? date('d.m.Y', strtotime($c['last_visit_date'])) : 'Nová klientka' ?>
                     </div>
                 </div>
