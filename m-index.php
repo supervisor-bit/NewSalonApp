@@ -1,8 +1,14 @@
 <?php require_once 'auth.php'; ?>
 <?php
 require_once 'db.php';
-// Načteme klienty seřazené podle příjmení a jména
-$stmt = $pdo->query("SELECT id, first_name, last_name, last_visit_date, phone FROM clients ORDER BY last_name ASC, first_name ASC");
+// Načteme klienty seřazené podle příjmení a jména, včetně data poslední návštěvy
+$stmt = $pdo->query("
+    SELECT c.id, c.first_name, c.last_name, c.phone, MAX(v.visit_date) as last_visit_date 
+    FROM clients c 
+    LEFT JOIN visits v ON v.client_id = c.id 
+    GROUP BY c.id, c.first_name, c.last_name, c.phone 
+    ORDER BY c.last_name ASC, c.first_name ASC
+");
 $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
@@ -17,7 +23,6 @@ $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <body>
     <header class="m-header">
         <h1>KARTA <span style="font-weight:300;">MOBILE</span></h1>
-        <a href="index.php" style="font-size:12px; font-weight:600; background:#334155; padding:6px 12px; border-radius:20px;">Zpět na PC verzi</a>
     </header>
 
     <div class="m-search-wrap">
@@ -60,12 +65,6 @@ $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
             });
             document.getElementById('no-results').style.display = found === 0 ? 'block' : 'none';
         });
-        
-        // Alert o uložení
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('success') === '1') {
-            alert('✅ Receptura i návštěva byla bezpečně uložena!');
-        }
     </script>
 </body>
 </html>
