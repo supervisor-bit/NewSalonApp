@@ -24,16 +24,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->beginTransaction();
         
         if ($edit_id > 0) {
-            // AKTUALIZACE STÁVAJÍCÍ NÁVŠTĚVY
+            // Načíst původní data pro zachování ceny a poznámky z PC verze
+            $old_stmt = $pdo->prepare("SELECT visit_date, note, price FROM visits WHERE id = ?");
+            $old_stmt->execute([$edit_id]);
+            $old_data = $old_stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($old_data) {
+                // Nechceme přepsat cenu a poznámku nulou/prázdnem z mobilu
+                $visit_date = $old_data['visit_date']; 
+                $note = $old_data['note'];
+                $price = $old_data['price'];
+            }
+
             $stmt = $pdo->prepare("UPDATE visits SET visit_date = ?, note = ?, price = ?, s_metal_detox = ?, s_trim = ?, s_blow = ?, s_curl = ?, s_iron = ? WHERE id = ?");
             $stmt->execute([$visit_date, $note, $price, $s_metal_detox, $s_trim, $s_blow, $s_curl, $s_iron, $edit_id]);
             $visit_id = $edit_id;
 
-            // Smazat staré receptury pro tuto návštěvu
             $pdo->prepare("DELETE FROM formulas WHERE visit_id = ?")->execute([$visit_id]);
             $pdo->prepare("DELETE FROM visit_products WHERE visit_id = ?")->execute([$visit_id]);
         } else {
-            // NOVÁ NÁVŠTĚVA
             $stmt = $pdo->prepare("INSERT INTO visits (client_id, visit_date, note, price, s_metal_detox, s_trim, s_blow, s_curl, s_iron) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([$client_id, $visit_date, $note, $price, $s_metal_detox, $s_trim, $s_blow, $s_curl, $s_iron]);
             $visit_id = $pdo->lastInsertId();
@@ -44,10 +53,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         foreach ($bowl_names as $bIndex => $bName) {
             if (empty($bName)) continue;
-            
             $materials = $_POST['material_id'][$bIndex] ?? [];
             $amounts = $_POST['amount_g'][$bIndex] ?? [];
-            
             for ($i = 0; $i < count($materials); $i++) {
                 if (!empty($materials[$i]) && (!empty($amounts[$i]) || $amounts[$i] === '0')) {
                     $f_stmt->execute([$visit_id, $materials[$i], $amounts[$i], $bName]);
@@ -55,28 +62,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Homecare products
         $product_ids = $_POST['product_ids'] ?? [];
         $product_prices = $_POST['product_prices'] ?? [];
         $product_amounts = $_POST['product_amounts'] ?? [];
         $p_stmt = $pdo->prepare("INSERT INTO visit_products (visit_id, product_id, price_sold, amount) VALUES (?, ?, ?, ?)");
-        
         for ($i = 0; $i < count($product_ids); $i++) {
             if (!empty($product_ids[$i])) {
-                $p_stmt->execute([
-                    $visit_id, 
-                    $product_ids[$i], 
-                    (int)$product_prices[$i],
-                    (int)($product_amounts[$i] ?? 1)
-                ]);
+                $p_stmt->execute([$visit_id, $product_ids[$i], (int)$product_prices[$i], (int)($product_amounts[$i] ?? 1)]);
             }
         }
         
         $pdo->commit();
-        $_SESSION['msg'] = $edit_id > 0 ? "Návštěva byla úspěšně upravena." : "Návštěva i s produkty byla bezpečně uložena.";
+        $_SESSION['msg'] = $edit_id > 0 ? "Návštěva upravena." : "Návštěva uložena.";
     } catch(Exception $e) {
         $pdo->rollBack();
-        $_SESSION['msg'] = "Chyba při ukládání: " . $e->getMessage();
+        $_SESSION['msg'] = "Chyba: " . $e->getMessage();
     }
 
     if ($mobile) {
