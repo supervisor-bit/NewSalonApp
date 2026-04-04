@@ -22,6 +22,7 @@
             <input type="text" class="material-search" placeholder="Hledat odstín..." autocomplete="off">
             <div class="ac-list"></div>
         </div>
+        <div class="shop-toggle-pc" style="display:flex; align-items:center; justify-content:center; min-width:30px;"></div>
         <input type="number" class="amount-input" placeholder="g">
         <button type="button" class="btn-remove" onclick="if(this.parentElement.parentElement.children.length > 1) this.parentElement.remove()" tabindex="-1">×</button>
     </div>

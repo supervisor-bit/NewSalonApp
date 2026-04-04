@@ -100,10 +100,22 @@
             const resp = await fetch('api_shopping.php', { method: 'POST', body: formData });
             const json = await resp.json();
             if(json.success && !json.new_status) {
-                // Položka byla odebrána (stav je 0)
+                // Položka byla odebrána
                 const row = btn.closest('.acc-row-v2');
                 row.style.opacity = '0.3';
                 row.style.pointerEvents = 'none';
+                
+                // Okamžitá aktualizace badge v UI (bez refreshe)
+                const badge = document.getElementById('shopping-badge-count');
+                if(badge) {
+                    let currentCount = parseInt(badge.textContent);
+                    if(currentCount > 1) {
+                        badge.textContent = currentCount - 1;
+                    } else {
+                        badge.remove();
+                    }
+                }
+                
                 setTimeout(() => row.remove(), 400);
             }
         } catch(e) { console.error(e); }
@@ -233,6 +245,13 @@
         let bIndex = new Date().getTime() + count; 
         inputName.name = `bowl_names[${bIndex}]`;
         container.dataset.index = bIndex;
+
+        // PŘIDÁNO: Skrytý input pro pole bowl_index[], aby server věděl o všech miskách
+        const hiddenIndex = document.createElement('input');
+        hiddenIndex.type = 'hidden';
+        hiddenIndex.name = 'bowl_index[]';
+        hiddenIndex.value = bIndex;
+        container.appendChild(hiddenIndex);
         
         wrapper.appendChild(tpl);
         
@@ -306,6 +325,17 @@
                     hiddenEl.value = m.id;
                     searchEl.value = m.name;
                     listEl.style.display = 'none';
+
+                    // PŘIDÁNO: Aktualizace košíku v míchárně
+                    const row = searchEl.closest('.recept-row');
+                    if(row) {
+                        const shopCont = row.querySelector('.shop-toggle-pc');
+                        if(shopCont) {
+                            let matFull = MATERIALS_DATA.find(mat => mat.id == m.id);
+                            updateShopIconPC(shopCont, m.id, matFull ? matFull.needs_buying : 0);
+                        }
+                    }
+
                     let amountBox = searchEl.closest('.recept-row').querySelector('.amount-input');
                     if(amountBox) {
                         amountBox.focus();
@@ -488,7 +518,14 @@
         if (matId) {
             hiddenEl.value = matId;
             let matMatch = MATERIALS_DATA.find(m => m.id == matId);
-            if(matMatch) searchEl.value = matMatch.name;
+            if(matMatch) {
+                searchEl.value = matMatch.name;
+                // Zobrazit košík i pro načtené materiály
+                const shopCont = rTpl.querySelector('.shop-toggle-pc');
+                if(shopCont) {
+                    updateShopIconPC(shopCont, matId, matMatch.needs_buying);
+                }
+            }
         }
         
         odeslatDoNaseptavace(searchEl, hiddenEl, listEl);
@@ -935,3 +972,97 @@
     }
 
 
+    function updateShopIconPC(container, materialId, needsBuying) {
+        if(!container) return;
+        // Styl košíku pro PC míchárnu (šedý = ok, zlatý = koupit)
+        container.innerHTML = `
+            <button type="button" class="btn-shop-pc ${needsBuying ? 'active' : ''}" 
+                    style="background:none; border:none; border-radius:5px; padding:5px; cursor:pointer; color:${needsBuying ? 'var(--gold)' : '#cbd5e1'}; display:flex; align-items:center; justify-content:center; transition: all 0.2s;"
+                    onclick="toggleShoppingPC(${materialId}, this)" 
+                    title="${needsBuying ? 'V nákupním seznamu' : 'Přidat na nákupní seznam'}">
+                <i data-lucide="shopping-cart" style="width:18px;height:18px;"></i>
+            </button>
+        `;
+        lucide.createIcons();
+    }
+
+    async function toggleShoppingPC(id, btn, isAccountingView = false) {
+        try {
+            const formData = new FormData();
+            formData.append('material_id', id);
+            const resp = await fetch('api_shopping.php', { method: 'POST', body: formData });
+            const json = await resp.json();
+            if(json.success) {
+                // Změna barvy ikonky a titulku v míchárně
+                if(json.new_status) {
+                    btn.classList.add('active');
+                    btn.style.color = 'var(--gold)';
+                    btn.title = 'V nákupním seznamu';
+                } else {
+                    btn.classList.remove('active');
+                    btn.style.color = '#cbd5e1';
+                    btn.title = 'Přidat na nákupní seznam';
+                }
+                
+                // Aktualizace badge v reálném čase (horní navigace)
+                const badge = document.getElementById('shopping-badge-count');
+                const navTab = document.getElementById('acc-btn-nakup');
+                
+                if(json.new_status) {
+                    if(badge) {
+                        badge.textContent = parseInt(badge.textContent) + 1;
+                    } else if(navTab) {
+                        const newBadge = document.createElement('span');
+                        newBadge.id = 'shopping-badge-count';
+                        newBadge.style = 'background:#ef4444; color:#fff; font-size:10px; padding:2px 6px; border-radius:10px; margin-left:5px;';
+                        newBadge.textContent = '1';
+                        navTab.appendChild(newBadge);
+                    }
+                } else {
+                    if(badge) {
+                        let currentCount = parseInt(badge.textContent);
+                        if(currentCount > 1) badge.textContent = currentCount - 1;
+                        else badge.remove();
+                    }
+                }
+
+                // AKTUALIZACE PANELU FINANCÍ (Nákupní seznam v reálném čase)
+                const counterVal = document.getElementById('shopping-counter-val');
+                const counterBox = document.getElementById('shopping-counter-box');
+                const emptyState = document.getElementById('shopping-empty-state');
+                
+                if(counterVal) {
+                    let current = parseInt(counterVal.textContent);
+                    if(!json.new_status && current > 0) {
+                        // Naskladněno (odebráno ze seznamu)
+                        let nextCount = current - 1;
+                        counterVal.textContent = nextCount;
+                        if(nextCount === 0) {
+                            if(counterBox) counterBox.style.display = 'none';
+                            if(emptyState) emptyState.style.display = 'block';
+                        }
+                    } else if(json.new_status) {
+                        // Přidáno do seznamu
+                        counterVal.textContent = current + 1;
+                        if(counterBox) counterBox.style.display = 'flex';
+                        if(emptyState) emptyState.style.display = 'none';
+                    }
+                }
+
+                // Pokud jsme přímo v nákupním seznamu, řádek plynule schováme
+                if(isAccountingView && !json.new_status) {
+                    const row = btn.closest('.shopping-row');
+                    if(row) {
+                        row.style.transition = 'all 0.3s ease';
+                        row.style.opacity = '0';
+                        row.style.transform = 'translateX(20px)';
+                        setTimeout(() => row.remove(), 300);
+                    }
+                }
+
+                // Aktualizujeme i lokální data materiálů
+                let mat = MATERIALS_DATA.find(m => m.id == id);
+                if(mat) mat.needs_buying = json.new_status;
+            }
+        } catch(e) { console.error(e); }
+    }

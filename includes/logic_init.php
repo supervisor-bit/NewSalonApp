@@ -138,7 +138,7 @@ if (!$setup_needed) {
                 $f_stmt = $pdo->prepare("
                     SELECT f.material_id, f.amount_g, f.bowl_name, m.category, m.name 
                     FROM formulas f
-                    JOIN materials m ON f.material_id = m.id
+                    LEFT JOIN materials m ON f.material_id = m.id
                     WHERE f.visit_id = ?
                 ");
                 $f_stmt->execute([$v['id']]);
@@ -207,7 +207,7 @@ if (!$setup_needed) {
 
     // 3. Stáhnutí číselníku pro selekty s prioritou podle používání
     $m_stmt = $pdo->query("
-        SELECT m.id, m.category, m.name, m.is_active, 
+        SELECT m.id, m.category, m.name, m.is_active, m.needs_buying,
         (SELECT COUNT(*) FROM formulas f WHERE f.material_id = m.id) as use_count
         FROM materials m 
         ORDER BY use_count DESC, m.category, m.name

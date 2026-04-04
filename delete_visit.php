@@ -33,5 +33,10 @@ try {
     $_SESSION['msg'] = "Chyba při mazání: " . $e->getMessage();
 }
 
-header("Location: m-history.php?client_id=" . $client_id);
+$source = $_GET['source'] ?? 'mobile';
+if ($source === 'pc') {
+    header("Location: index.php?client_id=" . $client_id);
+} else {
+    header("Location: m-history.php?client_id=" . $client_id);
+}
 exit;

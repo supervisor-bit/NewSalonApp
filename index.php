@@ -47,14 +47,20 @@
 
 <script>
     const MATERIALS_DATA = <?= json_encode(array_values(array_map(function($m) { 
-        return ['id' => $m['id'], 'name' => $m['category'] . ' - ' . $m['name']]; 
-    }, $materials))) ?>;
+        return [
+            'id' => $m['id'], 
+            'name' => $m['category'] . ' - ' . $m['name'], 
+            'needs_buying' => (int)$m['needs_buying'],
+            'use_count' => (int)$m['use_count'],
+            'category' => $m['category']
+        ]; 
+    }, $materials)), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 
     const PRODUCTS_DATA = <?= json_encode(array_values(array_map(function($p) { 
         return ['id' => $p['id'], 'name' => $p['brand'] . ' - ' . $p['name'], 'price' => $p['price']]; 
-    }, $active_products))) ?>;
-    </script>
-    <script src="app.js"></script>
+    }, $active_products)), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+</script>
+<script src="app.js?v=<?= time() ?>"></script>
 
 <!-- Global dropdown moved to includes/modals.php -->
 
@@ -148,7 +154,7 @@
                 <button type="button" id="acc-btn-nakup" class="acc-tab-btn-v2" onclick="prepniAccounting('nakup')" style="padding:10px 25px; border-radius:12px; font-weight:700; border:none; cursor:pointer; display:flex; align-items:center; gap:8px;">
                     Nákupní seznam
                     <?php if(count($shopping_list) > 0): ?>
-                        <span style="background:#ef4444; color:#fff; font-size:10px; padding:2px 6px; border-radius:10px;"><?= count($shopping_list) ?></span>
+                        <span id="shopping-badge-count" style="background:#ef4444; color:#fff; font-size:10px; padding:2px 6px; border-radius:10px;"><?= count($shopping_list) ?></span>
                     <?php endif; ?>
                 </button>
             </div>
@@ -204,35 +210,39 @@
             <div id="acc-view-nakup" class="acc-view" style="display:none;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                     <h3 class="sekce-nadpis" style="margin:0;">Věci k nákupu (Hlídač)</h3>
-                    <div style="background:#fef2f2; border:1px solid #fee2e2; color:#be123c; padding:8px 15px; border-radius:10px; font-size:13px; font-weight:600; display:flex; align-items:center; gap:8px;">
+                    <div id="shopping-counter-box" style="background:#fef2f2; border:1px solid #fee2e2; color:#be123c; padding:8px 15px; border-radius:10px; font-size:13px; font-weight:600; display:<?= empty($shopping_list) ? 'none' : 'flex' ?>; align-items:center; gap:8px;">
                         <i data-lucide="shopping-cart" style="width:16px;height:16px;"></i>
-                        Aktuálně chybí <?= count($shopping_list) ?> položek
+                        Aktuálně chybí <span id="shopping-counter-val"><?= count($shopping_list) ?></span> položek
                     </div>
                 </div>
                 
-                <div class="acc-list-premium">
-                    <?php if(empty($shopping_list)): ?>
-                        <div style="padding:80px 40px; text-align:center; background:#fff; border-radius:24px; border:2px dashed #e2e8f0;">
-                            <div style="background:#f1f5f9; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
-                                <i data-lucide="check-circle-2" style="width:30px; height:30px; color:#10b981;"></i>
-                            </div>
-                            <h4 style="font-family:'Outfit'; font-size:20px; color:var(--primary); margin-bottom:8px;">Všechno máme!</h4>
-                            <p style="color:#64748b; font-size:14px; margin:0;">Nákupní lístek je momentálně prázdný.</p>
+                <div class="acc-list-premium" id="shopping-list-container">
+                    <!-- Prázdný stav (vždy v DOMu, zobrazen jen když je potřeba) -->
+                    <div id="shopping-empty-state" style="padding:80px 40px; text-align:center; background:#fff; border-radius:24px; border:2px dashed #e2e8f0; display:<?= empty($shopping_list) ? 'block' : 'none' ?>;">
+                        <div style="background:#f1f5f9; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
+                            <i data-lucide="check-circle-2" style="width:30px; height:30px; color:#10b981;"></i>
                         </div>
-                    <?php else: foreach($shopping_list as $sl): ?>
-                        <div class="acc-row-v2" style="padding:18px 25px;">
-                            <div class="row-avatar" style="background:#fff7ed; color:#f97316;">
-                                <i data-lucide="package" style="width:18px;height:18px;"></i>
+                        <h4 style="font-family:'Outfit'; font-size:20px; color:var(--primary); margin-bottom:8px;">Všechno máme!</h4>
+                        <p style="color:#64748b; font-size:14px; margin:0;">Nákupní lístek je momentálně prázdný.</p>
+                    </div>
+
+                    <!-- Seznam položek -->
+                    <div id="shopping-list-rows">
+                        <?php foreach($shopping_list as $sl): ?>
+                            <div class="acc-row-v2 shopping-row" data-id="<?= $sl['id'] ?>" style="padding:18px 25px;">
+                                <div class="row-avatar" style="background:#fff7ed; color:#f97316;">
+                                    <i data-lucide="package" style="width:18px;height:18px;"></i>
+                                </div>
+                                <div class="row-info">
+                                    <div class="name" style="font-size:18px;"><?= htmlspecialchars($sl['name']) ?></div>
+                                    <div class="note" style="font-size:12px; text-transform:uppercase; font-weight:600; letter-spacing:0.5px;"><?= htmlspecialchars($sl['category']) ?> (<?= htmlspecialchars($sl['brand']) ?>)</div>
+                                </div>
+                                <button type="button" class="btn-ulozit" onclick="toggleShoppingPC(<?= $sl['id'] ?>, this, true)" style="background:#f1f5f9; color:var(--primary); border:none; padding:10px 20px; font-size:13px; font-weight:700; border-radius:10px; display:flex; align-items:center; gap:8px; margin:0;">
+                                    <i data-lucide="check" style="width:16px;height:16px;color:#10b981;"></i> Označit jako koupené
+                                </button>
                             </div>
-                            <div class="row-info">
-                                <div class="name" style="font-size:18px;"><?= htmlspecialchars($sl['name']) ?></div>
-                                <div class="note" style="font-size:12px; text-transform:uppercase; font-weight:600; letter-spacing:0.5px;"><?= htmlspecialchars($sl['category']) ?> (<?= htmlspecialchars($sl['brand']) ?>)</div>
-                            </div>
-                            <button type="button" class="btn-ulozit" onclick="odebratZNakupu(<?= $sl['id'] ?>, this)" style="background:#f1f5f9; color:var(--primary); border:none; padding:10px 20px; font-size:13px; font-weight:700; border-radius:10px; display:flex; align-items:center; gap:8px; margin:0;">
-                                <i data-lucide="check" style="width:16px;height:16px;color:#10b981;"></i> Označit jako koupené
-                            </button>
-                        </div>
-                    <?php endforeach; endif; ?>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
             </div>
 
@@ -973,7 +983,7 @@
                                         Platba
                                     </a>
                                     <?php  endif; ?>
-                                    <a href="#" onclick="ukazSmazatModal('delete_visit.php?id=<?= $v['id'] ?>&client_id=<?= $active_client['id'] ?>')" class="chip-btn chip-danger" style="margin-left:auto;">
+                                    <a href="#" onclick="ukazSmazatModal('delete_visit.php?id=<?= $v['id'] ?>&client_id=<?= $active_client['id'] ?>&source=pc')" class="chip-btn chip-danger" style="margin-left:auto;">
                                         <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                                         Smazat
                                     </a>
