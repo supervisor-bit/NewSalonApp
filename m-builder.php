@@ -14,16 +14,15 @@ $materialsData = [];
 foreach($materials as $m) $materialsData[] = $m;
 
 // Načtení POSLEDNÍCH RECEPTUR (max 3)
-$past_limit = 30; // pro sichr vic radku, pak to zgrupujeme
 $past_stmt = $pdo->prepare("
     SELECT v.id, v.visit_date, v.note, f.bowl_name, f.material_id, f.amount_g, m.category as m_cat, m.name as m_name 
     FROM visits v 
     JOIN formulas f ON v.id = f.visit_id 
     JOIN materials m ON f.material_id = m.id 
     WHERE v.client_id = ? 
-    ORDER BY v.visit_date DESC, v.id DESC LIMIT ?
+    ORDER BY v.visit_date DESC, v.id DESC LIMIT 50
 ");
-$past_stmt->execute([$client_id, $past_limit]);
+$past_stmt->execute([$client_id]);
 $raw_past = $past_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $past_visits = [];
