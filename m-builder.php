@@ -4,7 +4,7 @@ require_once 'db.php';
 $client_id = (int)($_GET['client_id'] ?? 0);
 if (!$client_id) { header("Location: m-index.php"); exit; }
 
-$stmt = $pdo->prepare("SELECT first_name, last_name, hair_texture, hair_condition, base_tone, gray_percentage, allergy FROM clients WHERE id = ?");
+$stmt = $pdo->prepare("SELECT first_name, last_name, hair_texture, hair_condition, base_tone, gray_percentage, allergy_note FROM clients WHERE id = ?");
 $stmt->execute([$client_id]);
 $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -58,12 +58,12 @@ if ($copy_visit_id > 0) {
         <div style="width:24px;"></div>
     </header>
 
-    <?php if (!empty($client['allergy'])): ?>
+    <?php if (!empty($client['allergy_note'])): ?>
     <div class="m-allergy-banner">
         <i data-lucide="alert-triangle" style="color:#ef4444; flex-shrink:0;"></i>
         <div>
             <span class="m-allergy-title">POZOR: ALERGIE</span>
-            <div class="m-allergy-text"><?= nl2br(htmlspecialchars($client['allergy'])) ?></div>
+            <div class="m-allergy-text"><?= nl2br(htmlspecialchars($client['allergy_note'])) ?></div>
         </div>
     </div>
     <?php endif; ?>

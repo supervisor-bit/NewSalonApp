@@ -103,12 +103,12 @@ foreach($raw_past as $rp) {
         <div style="font-size:13px; opacity:0.7;"><?= htmlspecialchars($client['phone'] ?: 'Bez telefonu') ?></div>
     </div>
 
-    <?php if (!empty($client['allergy'])): ?>
+    <?php if (!empty($client['allergy_note'])): ?>
     <div class="m-allergy-banner">
         <i data-lucide="alert-triangle" style="color:#ef4444; flex-shrink:0;"></i>
         <div>
             <span class="m-allergy-title">POZOR: ALERGIE</span>
-            <div class="m-allergy-text"><?= nl2br(htmlspecialchars($client['allergy'])) ?></div>
+            <div class="m-allergy-text"><?= nl2br(htmlspecialchars($client['allergy_note'])) ?></div>
         </div>
     </div>
     <?php endif; ?>
