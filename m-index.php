@@ -53,6 +53,9 @@ $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
             Receptura uložena!
         </div>
         <script>
+            // Vyčistíme URL, aby při refreshu nápis "Uloženo" zmizel
+            window.history.replaceState({}, document.title, window.location.pathname);
+
             setTimeout(() => {
                 const toast = document.getElementById('save-toast');
                 if(toast) {

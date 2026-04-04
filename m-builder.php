@@ -12,6 +12,40 @@ $client = $stmt->fetch(PDO::FETCH_ASSOC);
 $materials = $pdo->query("SELECT id, brand, category, name FROM materials WHERE is_active = 1 ORDER BY brand, category, name")->fetchAll(PDO::FETCH_ASSOC);
 $materialsData = [];
 foreach($materials as $m) $materialsData[] = $m;
+
+// Načtení POSLEDNÍCH RECEPTUR (max 3)
+$past_limit = 30; // pro sichr vic radku, pak to zgrupujeme
+$past_stmt = $pdo->prepare("
+    SELECT v.id, v.visit_date, v.note, f.bowl_name, f.material_id, f.amount_g, m.category as m_cat, m.name as m_name 
+    FROM visits v 
+    JOIN formulas f ON v.id = f.visit_id 
+    JOIN materials m ON f.material_id = m.id 
+    WHERE v.client_id = ? 
+    ORDER BY v.visit_date DESC, v.id DESC LIMIT ?
+");
+$past_stmt->execute([$client_id, $past_limit]);
+$raw_past = $past_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$past_visits = [];
+foreach($raw_past as $rp) {
+    $vid = $rp['id'];
+    if(!isset($past_visits[$vid])) {
+        $past_visits[$vid] = [
+            'id' => $vid,
+            'date' => date('d.m.', strtotime($rp['visit_date'])),
+            'note' => $rp['note'],
+            'bowls' => []
+        ];
+    }
+    $bn = $rp['bowl_name'] ?: 'Miska';
+    if(!isset($past_visits[$vid]['bowls'][$bn])) $past_visits[$vid]['bowls'][$bn] = [];
+    $past_visits[$vid]['bowls'][$bn][] = [
+        'id' => $rp['material_id'], 
+        'name' => $rp['m_cat'].' '.$rp['m_name'], 
+        'amt' => $rp['amount_g']
+    ];
+}
+$past_visits = array_slice(array_values($past_visits), 0, 3);
 ?>
 <!DOCTYPE html>
 <html lang="cs">
@@ -40,6 +74,35 @@ foreach($materials as $m) $materialsData[] = $m;
         <div class="m-section-title">RECEPTURA (Misky s barvou)</div>
         <div id="m-bowls"></div>
         <button type="button" class="m-add-bowl-btn" onclick="addBowl()">+ PŘIDAT NOVOU MISKU</button>
+
+        <?php if (!empty($past_visits)): ?>
+        <div class="m-section-title">HISTORIE RECEPTUR (Zopakovat)</div>
+        <div class="m-history">
+            <?php foreach ($past_visits as $pv): ?>
+                <div class="m-history-card">
+                    <div class="m-history-date">
+                        <i data-lucide="calendar" style="width:14px;height:14px;"></i> <?= $pv['date'] ?>
+                    </div>
+                    <?php if ($pv['note']): ?>
+                        <div class="m-history-note"><?= nl2br(htmlspecialchars($pv['note'])) ?></div>
+                    <?php endif; ?>
+                    <div class="m-history-summary">
+                        <?php 
+                        $summary = [];
+                        foreach ($pv['bowls'] as $bName => $mats) {
+                            $mTexts = array_map(fn($m) => htmlspecialchars($m['name']).' ('.$m['amt'].'g)', $mats);
+                            $summary[] = "<strong>".htmlspecialchars($bName).":</strong> " . implode(', ', $mTexts);
+                        }
+                        echo implode('<br>', $summary);
+                        ?>
+                    </div>
+                    <button type="button" class="m-btn-copy" onclick='applyPastRecipe(<?= json_encode($pv['bowls']) ?>)'>
+                        <i data-lucide="copy" style="width:14px;height:14px;"></i> Zopakovat tyto barvy
+                    </button>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
         
         <!-- Služby, co kadeřník udělal -->
         <div class="m-section-title">PROVEDENÉ SLUŽBY</div>
@@ -186,6 +249,56 @@ foreach($materials as $m) $materialsData[] = $m;
 
             input.addEventListener('blur', () => { setTimeout(() => { list.style.display = 'none'; }, 350); });
             input.addEventListener('focus', () => { if(input.value) input.dispatchEvent(new Event('input')); });
+        }
+
+        function applyPastRecipe(pastBowls) {
+            if(!confirm('Opravdu chcete přepsat rozdělaný recept touto historií?')) return;
+            
+            const wrap = document.getElementById('m-bowls');
+            wrap.innerHTML = ''; // Smazat aktuálně rozdělané misky
+            bowlStatus = 0; // Reset počítadla (lokálně pro tuto funkci použijeme bowlCount)
+            let localBowlCount = 0;
+            
+            for (const [bName, mats] of Object.entries(pastBowls)) {
+                // Přidat misku
+                const bowlDiv = document.createElement('div');
+                bowlDiv.className = 'm-bowl';
+                bowlDiv.dataset.index = localBowlCount;
+                bowlDiv.innerHTML = `
+                    <div class="m-bowl-header">
+                        <input type="text" class="m-bowl-title" name="bowl_names[]" value="${bName}" onclick="this.select()">
+                        <button type="button" class="m-bowl-del" onclick="this.parentElement.parentElement.remove()">×</button>
+                    </div>
+                    <div class="m-bowl-rows"></div>
+                    <button type="button" class="m-add-row-btn" onclick="addRow(this.previousElementSibling, true)">+ Přidat barvu / oxidant</button>
+                `;
+                wrap.appendChild(bowlDiv);
+                
+                const rowsCont = bowlDiv.querySelector('.m-bowl-rows');
+                mats.forEach(m => {
+                    // Přidat řádek
+                    const rowDiv = document.createElement('div');
+                    rowDiv.className = 'm-row';
+                    rowDiv.innerHTML = `
+                        <div class="m-material-wrap">
+                            <input type="hidden" name="material_id[${localBowlCount}][]" value="${m.id}">
+                            <input type="text" class="m-material-input" placeholder="Hledat..." autocomplete="off" value="${m.name}">
+                            <div class="ac-list"></div>
+                        </div>
+                        <input type="number" name="amount_g[${localBowlCount}][]" class="m-amount-input" placeholder="g" value="${m.amt}">
+                        <button type="button" class="m-row-del" onclick="if(this.parentElement.parentElement.children.length > 1) this.parentElement.remove()">×</button>
+                    `;
+                    rowsCont.appendChild(rowDiv);
+                    setupAutocomplete(rowDiv.querySelector('.m-material-input'));
+                });
+                localBowlCount++;
+            }
+            
+            bowlCount = localBowlCount; // Synchronizace s globálním počítadlem
+            lucide.createIcons();
+            
+            // Scroll nahoru na začátek receptury pro kontrolu
+            window.scrollTo({top: 0, behavior: 'smooth'});
         }
 
         // Initialize first bowl
