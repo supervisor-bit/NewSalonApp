@@ -66,13 +66,15 @@ h1, h2, h3 { font-family: 'Outfit', sans-serif; font-weight: 700; }
 .m-bowl {
     background: #fff; margin: 0 16px 16px 16px;
     border-radius: 16px; border: 1px solid var(--border);
-    overflow: hidden;
+    position: relative;
     box-shadow: 0 2px 5px rgba(0,0,0,0.02);
 }
 .m-bowl-header {
     background: #f1f5f9; padding: 12px 16px;
     display: flex; justify-content: space-between; align-items: center;
     border-bottom: 1px dashed #cbd5e1;
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
 }
 .m-bowl-title {
     font-size: 16px; font-weight: 700; font-family: 'Outfit'; border: none; background: transparent; width: 100%; outline: none; color: var(--primary);
@@ -102,7 +104,7 @@ h1, h2, h3 { font-family: 'Outfit', sans-serif; font-weight: 700; }
 /* Autocomplete list */
 .ac-list {
     position: absolute; top: 100%; left: 0; right: 0; background: #fff;
-    border: 1px solid var(--border); border-radius: 8px; z-index: 10;
+    border: 1px solid var(--border); border-radius: 8px; z-index: 999;
     max-height: 200px; overflow-y: auto; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 .ac-item { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
@@ -123,4 +125,27 @@ h1, h2, h3 { font-family: 'Outfit', sans-serif; font-weight: 700; }
     background: #f1f5f9; color: var(--primary);
     border: none; border-radius: 12px; padding: 16px 20px;
     font-size: 15px; font-weight: 600;
+}
+
+/* Animace spinneru */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Toast Notification */
+.m-toast {
+    position: fixed; top: 75px; left: 50%; transform: translateX(-50%);
+    background: #10b981; color: #fff;
+    padding: 12px 24px; border-radius: 30px;
+    font-weight: 700; font-size: 14px;
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+    z-index: 1000;
+    display: flex; align-items: center; gap: 8px;
+    animation: slideDown 0.4s ease-out;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translate(-50%, -20px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
 }

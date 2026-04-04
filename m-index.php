@@ -47,6 +47,23 @@ $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <div id="no-results" style="display:none; text-align:center; padding:30px; color:#94a3b8; font-weight:600;">Žádná klientka nenalezena.</div>
     </ul>
 
+    <?php if (isset($_GET['success'])): ?>
+        <div id="save-toast" class="m-toast">
+            <i data-lucide="check-circle" style="width:18px;height:18px;"></i>
+            Receptura uložena!
+        </div>
+        <script>
+            setTimeout(() => {
+                const toast = document.getElementById('save-toast');
+                if(toast) {
+                    toast.style.opacity = '0';
+                    toast.style.transition = 'opacity 0.5s ease';
+                    setTimeout(() => toast.remove(), 500);
+                }
+            }, 3000);
+        </script>
+    <?php endif; ?>
+
     <script>
         lucide.createIcons();
         

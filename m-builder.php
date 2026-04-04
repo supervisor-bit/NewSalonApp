@@ -9,7 +9,7 @@ $stmt->execute([$client_id]);
 $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
 // Načtení materiálů
-$materials = $pdo->query("SELECT id, brand, line, name, code, type FROM materials WHERE is_active = 1 ORDER BY brand, line, CAST(code AS UNSIGNED), code, name")->fetchAll();
+$materials = $pdo->query("SELECT id, brand, category, name FROM materials WHERE is_active = 1 ORDER BY brand, category, name")->fetchAll(PDO::FETCH_ASSOC);
 $materialsData = [];
 foreach($materials as $m) $materialsData[] = $m;
 ?>
@@ -71,13 +71,39 @@ foreach($materials as $m) $materialsData[] = $m;
         lucide.createIcons();
         const materialsData = <?= json_encode($materialsData) ?>;
         
-        document.getElementById('m-form').onsubmit = function(e) {
+        document.getElementById('m-form').onsubmit = async function(e) {
+            e.preventDefault();
+            
+            // Pokud je otevřený našeptávač, napřed ho zavřeme
             let activeDrop = document.querySelector('.ac-list[style*="display: block"]');
             if(activeDrop) {
-                e.preventDefault();
                 activeDrop.style.display = 'none';
                 return false;
             }
+
+            // Vizuální zpětná vazba na tlačítku
+            const btn = document.querySelector('.btn-save-mobile');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="loader-2" style="width:18px;height:18px;animation:spin 1s linear infinite;"></i> Odesílám...';
+            btn.disabled = true;
+            lucide.createIcons();
+
+            try {
+                const formData = new FormData(this);
+                const response = await fetch('save_visit.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                // I když save_visit.php vrací redirect, fetch ho "skousne" a my se prostě jen přesměrujeme v okně
+                window.location.href = 'm-index.php?success=1';
+            } catch (err) {
+                alert('Chyba při odesílání: ' + err);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                lucide.createIcons();
+            }
+            return false;
         };
 
         let bowlCount = 0;
@@ -132,7 +158,7 @@ foreach($materials as $m) $materialsData[] = $m;
                 if(!val) { list.style.display = 'none'; return; }
                 
                 let matches = materialsData.filter(m => {
-                    let text = ` ${m.brand} ${m.line} ${m.code} ${m.name}`.toLowerCase();
+                    let text = ` ${m.brand} ${m.category} ${m.name}`.toLowerCase();
                     let terms = val.split(" ");
                     return terms.every(t => text.includes(t));
                 }).slice(0, 15);
@@ -141,11 +167,11 @@ foreach($materials as $m) $materialsData[] = $m;
                     matches.forEach(m => {
                         let div = document.createElement('div');
                         div.className = 'ac-item';
-                        div.innerHTML = `<strong style="color:var(--primary);">${m.code}</strong> ${m.name} <span style="color:#94a3b8; font-size:11px;">(${m.line})</span>`;
+                        div.innerHTML = `<strong style="color:var(--primary);">${m.category}</strong> ${m.name}`;
                         div.onmousedown = function(e) {
                             e.preventDefault();
                             hidden.value = m.id;
-                            input.value = m.code ? (m.code + ' ' + m.name) : m.name;
+                            input.value = m.category + ' ' + m.name;
                             list.style.display = 'none';
                             let amountInput = wrap.nextElementSibling;
                             if(amountInput) amountInput.focus();
@@ -158,7 +184,7 @@ foreach($materials as $m) $materialsData[] = $m;
                 }
             });
 
-            input.addEventListener('blur', () => { setTimeout(() => { list.style.display = 'none'; }, 200); });
+            input.addEventListener('blur', () => { setTimeout(() => { list.style.display = 'none'; }, 350); });
             input.addEventListener('focus', () => { if(input.value) input.dispatchEvent(new Event('input')); });
         }
 
