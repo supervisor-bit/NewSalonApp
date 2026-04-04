@@ -13,17 +13,22 @@ $materials = $pdo->query("SELECT id, brand, category, name FROM materials WHERE 
 $materialsData = [];
 foreach($materials as $m) $materialsData[] = $m;
 
-// Načtení dat k předvyplnění (pokud kopírujeme z historie)
+// Načtení dat k předvyplnění / editaci
 $prefill_bowls = [];
-$copy_visit_id = (int)($_GET['cv_id'] ?? 0);
-if ($copy_visit_id > 0) {
+$prefill_services = ['s_trim'=>0, 's_blow'=>0, 's_metal_detox'=>0, 's_curl'=>0, 's_iron'=>0];
+$cv_id = (int)($_GET['cv_id'] ?? 0);
+$edit_id = (int)($_GET['edit_id'] ?? 0);
+$source_id = $edit_id ?: $cv_id;
+
+if ($source_id > 0) {
+    // 1. Receptury
     $cv_stmt = $pdo->prepare("
         SELECT f.bowl_name, f.material_id, f.amount_g, m.category as m_cat, m.name as m_name 
         FROM formulas f
         LEFT JOIN materials m ON f.material_id = m.id
         WHERE f.visit_id = ?
     ");
-    $cv_stmt->execute([$copy_visit_id]);
+    $cv_stmt->execute([$source_id]);
     foreach ($cv_stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $bn = $row['bowl_name'] ?: 'Miska';
         if (!isset($prefill_bowls[$bn])) $prefill_bowls[$bn] = [];
@@ -33,6 +38,12 @@ if ($copy_visit_id > 0) {
             'amt' => $row['amount_g']
         ];
     }
+
+    // 2. Služby
+    $s_stmt = $pdo->prepare("SELECT s_trim, s_blow, s_metal_detox, s_curl, s_iron FROM visits WHERE id = ?");
+    $s_stmt->execute([$source_id]);
+    $srv = $s_stmt->fetch(PDO::FETCH_ASSOC);
+    if ($srv) $prefill_services = $srv;
 }
 ?>
 <!DOCTYPE html>
@@ -73,6 +84,7 @@ if ($copy_visit_id > 0) {
 
     <form id="m-form" action="save_visit.php" method="POST">
         <input type="hidden" name="client_id" value="<?= $client_id ?>">
+        <input type="hidden" name="edit_id" value="<?= $edit_id ?>">
         <input type="hidden" name="mobile" value="1">
         <input type="hidden" name="visit_date" value="<?= date('Y-m-d') ?>">
         
@@ -81,23 +93,26 @@ if ($copy_visit_id > 0) {
         <button type="button" class="m-add-bowl-btn" onclick="addBowl()">+ PŘIDAT NOVOU MISKU</button>
         
         <!-- Služby, co kadeřník udělal -->
-        <div class="m-section-title">PROVEDENÉ SLUŽBY</div>
         <div style="background:#fff; border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:0 16px;">
             <label style="display:flex; justify-content:space-between; align-items:center; padding:16px 0; border-bottom:1px solid #f1f5f9;">
                 <span style="font-weight:600;">Střih (Trim)</span>
-                <input type="checkbox" name="s_trim" style="transform: scale(1.5);">
+                <input type="checkbox" name="s_trim" style="transform: scale(1.5);" <?= $prefill_services['s_trim'] ? 'checked' : '' ?>>
             </label>
             <label style="display:flex; justify-content:space-between; align-items:center; padding:16px 0; border-bottom:1px solid #f1f5f9;">
                 <span style="font-weight:600;">Foukaná (Blow-dry)</span>
-                <input type="checkbox" name="s_blow" style="transform: scale(1.5);">
+                <input type="checkbox" name="s_blow" style="transform: scale(1.5);" <?= $prefill_services['s_blow'] ? 'checked' : '' ?>>
             </label>
             <label style="display:flex; justify-content:space-between; align-items:center; padding:16px 0; border-bottom:1px solid #f1f5f9;">
                 <span style="font-weight:600;">Kúry / Metal Detox</span>
-                <input type="checkbox" name="s_metal_detox" style="transform: scale(1.5);">
+                <input type="checkbox" name="s_metal_detox" style="transform: scale(1.5);" <?= $prefill_services['s_metal_detox'] ? 'checked' : '' ?>>
+            </label>
+            <label style="display:flex; justify-content:space-between; align-items:center; padding:16px 0; border-bottom:1px solid #f1f5f9;">
+                <span style="font-weight:600;">Žehlení / Vlny</span>
+                <input type="checkbox" name="s_iron" style="transform: scale(1.5);" <?= $prefill_services['s_iron'] ? 'checked' : '' ?>>
             </label>
             <label style="display:flex; justify-content:space-between; align-items:center; padding:16px 0;">
-                <span style="font-weight:600;">Žehlení / Vlny</span>
-                <input type="checkbox" name="s_iron" style="transform: scale(1.5);">
+                <span style="font-weight:600;">Kulmování / Lokny</span>
+                <input type="checkbox" name="s_curl" style="transform: scale(1.5);" <?= $prefill_services['s_curl'] ? 'checked' : '' ?>>
             </label>
         </div>
 
@@ -135,7 +150,7 @@ if ($copy_visit_id > 0) {
                 });
                 
                 // I když save_visit.php vrací redirect, fetch ho "skousne" a my se prostě jen přesměrujeme v okně
-                window.location.href = 'm-index.php?success=1';
+                window.location.href = 'm-history.php?client_id=<?= $client_id ?>&success=1';
             } catch (err) {
                 alert('Chyba při odesílání: ' + err);
                 btn.innerHTML = originalText;

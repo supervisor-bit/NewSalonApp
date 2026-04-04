@@ -79,6 +79,19 @@ foreach($raw_past as $rp) {
         .m-acc-bowl-title { font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
         .m-acc-mat { font-size: 14px; color: var(--primary); margin-bottom: 2px; }
         
+        /* Action Buttons in History */
+        .m-history-actions { display: flex; gap: 10px; margin-top: 15px; border-top: 1px solid #f1f5f9; padding-top: 15px; }
+        .btn-history-edit { 
+            flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+            padding: 10px; background: #f1f5f9; color: var(--primary); border-radius: 8px;
+            text-decoration: none; font-size: 13px; font-weight: 700; border: 1px solid var(--border);
+        }
+        .btn-history-del { 
+            display: flex; align-items: center; justify-content: center;
+            padding: 10px; background: #fef2f2; color: #ef4444; border-radius: 8px;
+            text-decoration: none; border: 1px solid #fee2e2;
+        }
+
         /* Fixed Action Button */
         .m-fab-container {
             position: fixed; bottom: 20px; left: 20px; right: 20px; z-index: 100;
@@ -168,6 +181,15 @@ foreach($raw_past as $rp) {
                         <a href="m-builder.php?client_id=<?= $client_id ?>&cv_id=<?= $v['id'] ?>" class="m-btn-copy" style="margin-top:10px;">
                             <i data-lucide="copy" style="width:14px;height:14px;"></i> Zopakovat do nové míchárny
                         </a>
+
+                        <div class="m-history-actions">
+                            <a href="m-builder.php?client_id=<?= $client_id ?>&edit_id=<?= $v['id'] ?>" class="btn-history-edit">
+                                <i data-lucide="pencil" style="width:14px;height:14px;"></i> Upravit návštěvu
+                            </a>
+                            <a href="javascript:void(0)" onclick="confirmDelete(<?= $v['id'] ?>, <?= $client_id ?>)" class="btn-history-del">
+                                <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
+                            </a>
+                        </div>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -209,6 +231,12 @@ foreach($raw_past as $rp) {
                         behavior: 'smooth'
                     });
                 }, 100);
+            }
+        }
+
+        function confirmDelete(visitId, clientId) {
+            if (confirm('Opravdu chcete tuto návštěvu i s recepturou trvale smazat? Tato akce je nevratná.')) {
+                window.location.href = 'delete_visit.php?id=' + visitId + '&client_id=' + clientId;
             }
         }
     </script>

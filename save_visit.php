@@ -17,12 +17,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $s_curl = isset($_POST['s_curl']) ? 1 : 0;
     $s_iron = isset($_POST['s_iron']) ? 1 : 0;
 
+    $edit_id = (int)($_POST['edit_id'] ?? 0);
+    $mobile = !empty($_POST['mobile']);
+
     try {
         $pdo->beginTransaction();
         
-        $stmt = $pdo->prepare("INSERT INTO visits (client_id, visit_date, note, price, s_metal_detox, s_trim, s_blow, s_curl, s_iron) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$client_id, $visit_date, $note, $price, $s_metal_detox, $s_trim, $s_blow, $s_curl, $s_iron]);
-        $visit_id = $pdo->lastInsertId();
+        if ($edit_id > 0) {
+            // AKTUALIZACE STÁVAJÍCÍ NÁVŠTĚVY
+            $stmt = $pdo->prepare("UPDATE visits SET visit_date = ?, note = ?, price = ?, s_metal_detox = ?, s_trim = ?, s_blow = ?, s_curl = ?, s_iron = ? WHERE id = ?");
+            $stmt->execute([$visit_date, $note, $price, $s_metal_detox, $s_trim, $s_blow, $s_curl, $s_iron, $edit_id]);
+            $visit_id = $edit_id;
+
+            // Smazat staré receptury pro tuto návštěvu
+            $pdo->prepare("DELETE FROM formulas WHERE visit_id = ?")->execute([$visit_id]);
+            $pdo->prepare("DELETE FROM visit_products WHERE visit_id = ?")->execute([$visit_id]);
+        } else {
+            // NOVÁ NÁVŠTĚVA
+            $stmt = $pdo->prepare("INSERT INTO visits (client_id, visit_date, note, price, s_metal_detox, s_trim, s_blow, s_curl, s_iron) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$client_id, $visit_date, $note, $price, $s_metal_detox, $s_trim, $s_blow, $s_curl, $s_iron]);
+            $visit_id = $pdo->lastInsertId();
+        }
         
         $bowl_names = $_POST['bowl_names'] ?? [];
         $f_stmt = $pdo->prepare("INSERT INTO formulas (visit_id, material_id, amount_g, bowl_name) VALUES (?, ?, ?, ?)");
@@ -58,14 +73,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         $pdo->commit();
-        $_SESSION['msg'] = "Návštěva i s produkty byla bezpečně uložena.";
+        $_SESSION['msg'] = $edit_id > 0 ? "Návštěva byla úspěšně upravena." : "Návštěva i s produkty byla bezpečně uložena.";
     } catch(Exception $e) {
         $pdo->rollBack();
         $_SESSION['msg'] = "Chyba při ukládání: " . $e->getMessage();
     }
 
-    if (!empty($_POST['mobile'])) {
-        header("Location: m-index.php?success=1");
+    if ($mobile) {
+        header("Location: m-history.php?client_id=" . $client_id . "&success=1");
     } else {
         header("Location: index.php?client_id=" . $client_id);
     }

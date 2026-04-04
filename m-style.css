@@ -30,14 +30,14 @@ h1, h2, h3 { font-family: 'Outfit', sans-serif; font-weight: 700; }
     height: 60px;
     display: flex; align-items: center; justify-content: space-between;
     padding: 0 16px;
-    z-index: 100;
+    z-index: 200;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 .m-header h1 { font-size: 18px; letter-spacing: 1px; color: var(--gold); }
 .m-header a { color: #fff; text-decoration: none; }
 
 /* Client List */
-.m-search-wrap { padding: 16px; background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 60px; z-index: 99;}
+.m-search-wrap { padding: 16px; background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 60px; z-index: 140;}
 .m-search-input {
     width: 100%; padding: 14px 16px;
     border: 2px solid var(--border); border-radius: 12px;
@@ -166,12 +166,22 @@ h1, h2, h3 { font-family: 'Outfit', sans-serif; font-weight: 700; }
 }
 .m-btn-copy:active { background: #e2e8f0; }
 
-/* Allergy Warning */
-.m-allergy-banner {
-    background: #fef2f2; border: 2px solid #ef4444; color: #991b1b;
-    padding: 12px 16px; margin: 10px 16px; border-radius: 12px;
-    display: flex; gap: 12px; align-items: flex-start;
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+/* Sticky Context Layout */
+.m-sticky-top {
+    position: sticky; top: 60px; z-index: 150;
+    background: var(--bg-color);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
-.m-allergy-title { font-weight: 800; font-size: 13px; text-transform: uppercase; display: block; margin-bottom: 2px; }
-.m-allergy-text { font-size: 14px; font-weight: 600; line-height: 1.4; }
+.m-client-banner {
+    background: var(--primary); color: #fff;
+    padding: 12px 16px; font-weight: 700; font-size: 15px;
+    display: flex; justify-content: space-between; align-items: center;
+}
+
+/* Allergy Warning (Adjusted for Sticky) */
+.m-allergy-banner {
+    background: #fef2f2; border-bottom: 2px solid #ef4444; color: #991b1b;
+    padding: 10px 16px; display: flex; gap: 12px; align-items: flex-start;
+}
+.m-allergy-title { font-weight: 800; font-size: 12px; text-transform: uppercase; display: block; margin-bottom: 2px; }
+.m-allergy-text { font-size: 13px; font-weight: 600; line-height: 1.3; }
