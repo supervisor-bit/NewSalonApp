@@ -139,6 +139,7 @@
                 $status_color = '#10b981';
                 $reason = 'Aktivní klientka';
                 $client_group = 'active';
+                $followup_detail = '';
 
                 $last_v = $c['last_visit_date'] ?? null;
                 $pref_i = (int)($c['preferred_interval'] ?: 8);
@@ -153,15 +154,18 @@
                 } else {
                     $days_since = (time() - strtotime($last_v)) / 86400;
                     $limit_days = $pref_i * 7;
+                    $days_overdue = max(0, (int)floor($days_since - $limit_days));
 
                     if ($days_since > ($limit_days + 14)) {
                         $status_color = '#ef4444';
                         $reason = 'Dlouho nebyla';
                         $client_group = 'followup';
+                        $followup_detail = '+' . $days_overdue . ' dní';
                     } elseif ($days_since > $limit_days) {
                         $status_color = '#f59e0b';
                         $reason = 'Měla by přijít';
                         $client_group = 'followup';
+                        $followup_detail = '+' . $days_overdue . ' dní';
                     }
                 }
             ?>
@@ -172,6 +176,9 @@
                     <p>
                         <i data-lucide="phone" style="width:10px; height:10px; opacity:0.5;"></i>
                         <?= htmlspecialchars($c['phone'] ?: 'Bez tel.') ?>
+                        <?php if ($followup_detail !== ''): ?>
+                            <span class="client-followup-badge" title="<?= htmlspecialchars($reason) ?>"><?= htmlspecialchars($followup_detail) ?></span>
+                        <?php endif; ?>
                     </p>
                 </div>
                 <span title="Stav retence: <?= $reason ?>" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:<?= $status_color ?>; box-shadow: 0 0 5px <?= $status_color ?>44; flex-shrink:0; margin-right: 5px;"></span>
