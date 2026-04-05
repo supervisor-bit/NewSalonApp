@@ -3,7 +3,7 @@
 require_once 'db.php';
 // Načteme klienty seřazené podle příjmení a jména, včetně data poslední návštěvy
 $stmt = $pdo->query("
-    SELECT c.id, c.first_name, c.last_name, c.phone, MAX(v.visit_date) as last_visit_date 
+    SELECT c.id, c.first_name, c.last_name, c.phone, MAX(v.visit_date) as last_visit_date, COUNT(v.id) as visit_count
     FROM clients c 
     LEFT JOIN visits v ON v.client_id = c.id 
     GROUP BY c.id, c.first_name, c.last_name, c.phone 
@@ -13,14 +13,16 @@ $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $max_client_id = 0;
 $latest_visit_stamp = '0';
+$total_visit_count = 0;
 foreach ($clients as $client_row) {
     $max_client_id = max($max_client_id, (int)($client_row['id'] ?? 0));
     $visit_stamp = !empty($client_row['last_visit_date']) ? strtotime($client_row['last_visit_date']) : 0;
-    if ($visit_stamp > 0) {
+    if ($visit_stamp > (int)$latest_visit_stamp) {
         $latest_visit_stamp = (string)$visit_stamp;
     }
+    $total_visit_count += (int)($client_row['visit_count'] ?? 0);
 }
-$clients_snapshot = count($clients) . '_' . $max_client_id . '_' . $latest_visit_stamp;
+$clients_snapshot = count($clients) . '_' . $max_client_id . '_' . $latest_visit_stamp . '_' . $total_visit_count;
 
 if (isset($_GET['ajax']) && $_GET['ajax'] === 'clients_pulse') {
     header('Content-Type: application/json');
@@ -66,16 +68,27 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'clients_pulse') {
 
     <ul class="m-client-list" id="client-list" data-snapshot="<?= htmlspecialchars($clients_snapshot, ENT_QUOTES, 'UTF-8') ?>">
         <?php foreach ($clients as $c): ?>
+            <?php
+                $visitCount = (int)($c['visit_count'] ?? 0);
+                $visitLabel = $visitCount === 1
+                    ? '1 návštěva'
+                    : (($visitCount >= 2 && $visitCount <= 4) ? $visitCount . ' návštěvy' : $visitCount . ' návštěv');
+            ?>
             <a href="m-history.php?client_id=<?= $c['id'] ?>" class="m-client-item" data-name="<?= mb_strtolower($c['last_name'].' '.$c['first_name']) ?>">
-                <div>
+                <div class="m-client-main">
                     <div class="m-client-name"><?= htmlspecialchars($c['last_name'] . ' ' . $c['first_name']) ?></div>
-                    <div class="m-client-date">
-                        <i data-lucide="clock" style="width:12px;height:12px;vertical-align:middle;"></i> 
-                        <?= $c['last_visit_date'] ? date('d.m.Y', strtotime($c['last_visit_date'])) : 'Nová klientka' ?>
+                    <div class="m-client-meta">
+                        <div class="m-client-date">
+                            <i data-lucide="clock" style="width:12px;height:12px;vertical-align:middle;"></i>
+                            <?= $c['last_visit_date'] ? date('d.m.Y', strtotime($c['last_visit_date'])) : 'Nová klientka' ?>
+                        </div>
                     </div>
                 </div>
-                <div class="m-client-arrow">
-                    <i data-lucide="chevron-right"></i>
+                <div class="m-client-side">
+                    <span class="m-client-visits"><?= htmlspecialchars($visitLabel) ?></span>
+                    <div class="m-client-arrow">
+                        <i data-lucide="chevron-right"></i>
+                    </div>
                 </div>
             </a>
         <?php endforeach; ?>
