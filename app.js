@@ -274,6 +274,65 @@
         return { containerUl: finalContainer.querySelector('.bowl-rows-container'), index: bIndex };
     }
 
+    function escapeRegExp(str) {
+        return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function highlightAutocompleteText(text, query) {
+        let result = String(text ?? '');
+        const parts = String(query ?? '').trim().split(/\s+/).filter(part => part.length > 1);
+        parts.forEach(part => {
+            const reg = new RegExp(`(${escapeRegExp(part)})`, 'gi');
+            result = result.replace(reg, '<strong style="color:var(--primary)">$1</strong>');
+        });
+        return result;
+    }
+
+    function getMaterialMeta(material) {
+        const rawCategory = String(material.category || '').trim();
+        const rawName = String(material.name || material.label || '').trim();
+        const match = rawCategory.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+        const family = match ? match[1].trim() : rawCategory;
+        const type = match ? match[2].trim() : '';
+        let cleanName = rawName;
+
+        [rawCategory, family].filter(Boolean).forEach(part => {
+            cleanName = cleanName.replace(new RegExp(`^${escapeRegExp(part)}\\s*[-–—:/]*\\s*`, 'i'), '');
+        });
+
+        if (type) {
+            cleanName = cleanName.replace(new RegExp(`^\\(?${escapeRegExp(type)}\\)?\\s*[-–—:/]*\\s*`, 'i'), '');
+        }
+
+        cleanName = cleanName.trim() || rawName || 'Bez názvu';
+        const prefix = [family || rawCategory, type].filter(Boolean).join(' · ');
+
+        return {
+            family: family || rawCategory || 'Materiál',
+            type,
+            cleanName,
+            inputValue: prefix ? `${prefix} – ${cleanName}` : cleanName
+        };
+    }
+
+    function getProductMeta(product) {
+        const brand = String(product.brand || '').trim();
+        const rawName = String(product.name || product.label || '').trim();
+        let cleanName = rawName;
+
+        if (brand) {
+            cleanName = cleanName.replace(new RegExp(`^${escapeRegExp(brand)}\\s*[-–—:/]*\\s*`, 'i'), '');
+        }
+
+        cleanName = cleanName.trim() || rawName || 'Bez názvu';
+
+        return {
+            brand: brand || 'Produkt',
+            cleanName,
+            inputValue: brand ? `${brand} – ${cleanName}` : cleanName
+        };
+    }
+
     function odeslatDoNaseptavace(searchEl, hiddenEl, listEl) {
         function updateList(val = '') {
             val = val.toLowerCase().trim();
@@ -285,7 +344,7 @@
                 matches = MATERIALS_DATA.slice(0, 5);
                 if (matches.length > 0) {
                     let head = document.createElement('div');
-                    head.style.padding = '4px 8px'; head.style.fontSize = '10px'; head.style.color = 'var(--gold-light)'; head.style.fontWeight = '700'; head.style.textTransform = 'uppercase'; head.style.borderBottom = '1px solid rgba(212,175,55,0.1)';
+                    head.style.padding = '4px 8px'; head.style.fontSize = '10px'; head.style.color = 'var(--primary)'; head.style.fontWeight = '700'; head.style.textTransform = 'uppercase'; head.style.borderBottom = '1px solid rgba(212,175,55,0.1)';
                     head.innerText = 'Často používané';
                     listEl.appendChild(head);
                 }
@@ -302,33 +361,32 @@
             
             matches.slice(0, 30).forEach((m, idx) => {
                 let div = document.createElement('div');
-                let displayName = m.name;
-                
-                // Highlight shody
-                if (val) {
-                    let parts = val.split(/\s+/);
-                    parts.forEach(p => {
-                        if(p.length > 1) {
-                            let reg = new RegExp(`(${p})`, 'gi');
-                            displayName = displayName.replace(reg, '<strong style="color:var(--gold-light)">$1</strong>');
-                        }
-                    });
-                }
+                const meta = getMaterialMeta(m);
+                const displayName = highlightAutocompleteText(meta.cleanName, val);
+                const familyLabel = highlightAutocompleteText(meta.family, val);
+                const mainLine = meta.cleanName && meta.cleanName.toLowerCase() !== meta.family.toLowerCase()
+                    ? `<span style="font-weight:700; color:var(--text);">${familyLabel}</span><span style="color:#94a3b8;"> — </span><span style="color:#475569;">${displayName}</span>`
+                    : `<span style="font-weight:700; color:var(--text);">${familyLabel}</span>`;
+                const typeBadge = meta.type
+                    ? `<span style="font-size:10px; background:rgba(212,175,55,0.12); color:var(--primary); padding:2px 7px; border-radius:999px; font-weight:700; letter-spacing:0.3px;">${highlightAutocompleteText(meta.type, val)}</span>`
+                    : '';
 
                 div.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                        <div style="display:flex; flex-direction:column;">
-                            <span style="font-size:10px; color:rgba(255,255,255,0.4); text-transform:uppercase;">${m.category}</span>
-                            <span class="m-name">${displayName}</span>
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; width:100%;">
+                        <div style="display:flex; flex-direction:column; min-width:0;">
+                            <span class="m-name">${mainLine}</span>
+                            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:4px;">
+                                ${typeBadge}
+                            </div>
                         </div>
-                        ${m.use_count > 0 ? `<span style="font-size:10px; background:rgba(212,175,55,0.1); color:var(--gold-light); padding:2px 5px; border-radius:4px;" title="Počet použití">${m.use_count}×</span>` : ''}
+                        ${m.use_count > 0 ? `<span style="font-size:10px; background:rgba(212,175,55,0.1); color:var(--primary); padding:2px 5px; border-radius:4px;" title="Počet použití">${m.use_count}×</span>` : ''}
                     </div>
                 `;
                 div.className = 'ac-item' + (idx === 0 ? ' ac-active' : '');
                 
                 div.addEventListener('click', function() {
                     hiddenEl.value = m.id;
-                    searchEl.value = m.name;
+                    searchEl.value = meta.inputValue;
                     listEl.style.display = 'none';
 
                     // PŘIDÁNO: Aktualizace košíku v míchárně
@@ -413,7 +471,7 @@
                 matches = PRODUCTS_DATA.slice(0, 5);
                 if (matches.length > 0) {
                     let head = document.createElement('div');
-                    head.style.padding = '4px 8px'; head.style.fontSize = '10px'; head.style.color = 'var(--gold-light)'; head.style.fontWeight = '700'; head.style.textTransform = 'uppercase'; head.style.borderBottom = '1px solid rgba(212,175,55,0.1)';
+                    head.style.padding = '4px 8px'; head.style.fontSize = '10px'; head.style.color = 'var(--primary)'; head.style.fontWeight = '700'; head.style.textTransform = 'uppercase'; head.style.borderBottom = '1px solid rgba(212,175,55,0.1)';
                     head.innerText = 'Často prodávané';
                     listEl.appendChild(head);
                 }
@@ -429,32 +487,26 @@
             
             matches.slice(0, 30).forEach((p, idx) => {
                 let div = document.createElement('div');
-                let displayName = p.name;
-                if (val) {
-                    val.split(/\s+/).forEach(part => {
-                        if(part.length > 1) {
-                            let reg = new RegExp(`(${part})`, 'gi');
-                            displayName = displayName.replace(reg, '<strong style="color:var(--gold-light)">$1</strong>');
-                        }
-                    });
-                }
+                const meta = getProductMeta(p);
+                const displayName = highlightAutocompleteText(meta.cleanName, val);
+                const brandLabel = highlightAutocompleteText(meta.brand, val);
 
                 div.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                        <div style="display:flex; flex-direction:column;">
-                            <span style="font-size:10px; color:rgba(255,255,255,0.4); text-transform:uppercase;">${p.brand}</span>
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; width:100%;">
+                        <div style="display:flex; flex-direction:column; min-width:0;">
+                            <span style="font-size:10px; color:#64748b; text-transform:uppercase; font-weight:700; letter-spacing:0.6px;">${brandLabel}</span>
                             <span>${displayName}</span>
                         </div>
                         <div style="display:flex; align-items:center; gap:8px;">
-                            ${p.use_count > 0 ? `<span style="font-size:10px; background:rgba(212,175,55,0.1); color:var(--gold-light); padding:2px 5px; border-radius:4px;">${p.use_count}×</span>` : ''}
-                            <span style="font-size:12px; font-weight:700; color:var(--primary);">${p.price} Kč</span>
+                            ${p.use_count > 0 ? `<span style="font-size:10px; background:rgba(212,175,55,0.1); color:var(--primary); padding:2px 5px; border-radius:4px;">${p.use_count}×</span>` : ''}
+                            <span style="font-size:12px; font-weight:700; color:var(--primary); white-space:nowrap;">${p.price} Kč</span>
                         </div>
                     </div>
                 `;
                 div.className = 'ac-item' + (idx === 0 ? ' ac-active' : '');
                 div.addEventListener('click', function() {
                     hiddenEl.value = p.id;
-                    searchEl.value = p.name;
+                    searchEl.value = meta.inputValue;
                     priceEl.value = p.price;
                     listEl.style.display = 'none';
                     if(amountEl) {

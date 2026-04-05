@@ -9,6 +9,19 @@ $stmt = $pdo->prepare("SELECT * FROM clients WHERE id = ?");
 $stmt->execute([$client_id]);
 $client = $stmt->fetch(PDO::FETCH_ASSOC);
 
+$flash_message = trim((string)($_SESSION['msg'] ?? ''));
+unset($_SESSION['msg']);
+
+$success_state = $_GET['success'] ?? '';
+if ($flash_message === '') {
+    if ($success_state === 'updated') {
+        $flash_message = 'Změny návštěvy byly uloženy.';
+    } elseif ($success_state === 'created') {
+        $flash_message = 'Návštěva byla uložena do historie.';
+    }
+}
+$toast_class = stripos($flash_message, 'chyba') !== false ? 'm-toast m-toast-error' : 'm-toast';
+
 // 2. Kompletní historie receptur
 $past_stmt = $pdo->prepare("
     SELECT v.id, v.visit_date, v.note, f.bowl_name, f.material_id, f.amount_g, m.category as m_cat, m.name as m_name 
@@ -105,6 +118,13 @@ foreach($raw_past as $rp) {
     </style>
 </head>
 <body style="padding-bottom: 100px;">
+    <?php if ($flash_message): ?>
+        <div id="mobile-toast" class="<?= $toast_class ?>">
+            <i data-lucide="<?= stripos($flash_message, 'chyba') !== false ? 'alert-circle' : 'check-circle-2' ?>" style="width:18px;height:18px;"></i>
+            <?= htmlspecialchars($flash_message) ?>
+        </div>
+    <?php endif; ?>
+
     <header class="m-header">
         <a href="m-index.php"><i data-lucide="arrow-left"></i></a>
         <div style="font-size:16px; font-weight:800; font-family:'Outfit';">HISTORIE KLIENTKY</div>
@@ -120,7 +140,7 @@ foreach($raw_past as $rp) {
         <div class="m-allergy-banner">
             <i data-lucide="alert-triangle" style="color:#ef4444; flex-shrink:0;"></i>
             <div>
-                <span class="m-allergy-title">POZOR: ALERGIE</span>
+                <span class="m-allergy-title">Alergické upozornění</span>
                 <div class="m-allergy-text"><?= nl2br(htmlspecialchars($client['allergy_note'])) ?></div>
             </div>
         </div>
@@ -205,6 +225,19 @@ foreach($raw_past as $rp) {
     <script>
         const CSRF_TOKEN = <?= json_encode($_SESSION['csrf_token'] ?? '') ?>;
         lucide.createIcons();
+
+        const mobileToast = document.getElementById('mobile-toast');
+        if (mobileToast) {
+            if (window.location.search.includes('success=')) {
+                window.history.replaceState({}, document.title, 'm-history.php?client_id=<?= $client_id ?>');
+            }
+            setTimeout(() => {
+                mobileToast.style.opacity = '0';
+                mobileToast.style.transition = 'opacity 0.35s ease';
+                setTimeout(() => mobileToast.remove(), 350);
+            }, 2400);
+        }
+
         function toggleAcc(header) {
             const content = header.nextElementSibling;
             const icon = header.querySelector('.acc-icon');

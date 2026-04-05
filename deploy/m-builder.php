@@ -18,6 +18,10 @@ $prefill_services = ['s_trim'=>0, 's_blow'=>0, 's_metal_detox'=>0, 's_curl'=>0, 
 $cv_id = (int)($_GET['cv_id'] ?? 0);
 $edit_id = (int)($_GET['edit_id'] ?? 0);
 $source_id = $edit_id ?: $cv_id;
+$save_button_label = $edit_id > 0 ? 'Uložit změny návštěvy' : 'Uložit návštěvu';
+$page_heading = $edit_id > 0 ? 'ÚPRAVA NÁVŠTĚVY' : 'NOVÁ NÁVŠTĚVA';
+$prefill_note = '';
+$success_state = $edit_id > 0 ? 'updated' : 'created';
 
 if ($source_id > 0) {
     // 1. Receptury
@@ -38,11 +42,14 @@ if ($source_id > 0) {
         ];
     }
 
-    // 2. Služby
-    $s_stmt = $pdo->prepare("SELECT s_trim, s_blow, s_metal_detox, s_curl, s_iron FROM visits WHERE id = ?");
+    // 2. Služby + poznámka
+    $s_stmt = $pdo->prepare("SELECT note, s_trim, s_blow, s_metal_detox, s_curl, s_iron FROM visits WHERE id = ?");
     $s_stmt->execute([$source_id]);
     $srv = $s_stmt->fetch(PDO::FETCH_ASSOC);
-    if ($srv) $prefill_services = $srv;
+    if ($srv) {
+        $prefill_services = $srv;
+        $prefill_note = (string)($srv['note'] ?? '');
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -50,7 +57,7 @@ if ($source_id > 0) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skládač Receptur</title>
+    <title><?= htmlspecialchars($page_heading) ?> | Mobilní míchárna</title>
     <link rel="stylesheet" href="m-style.css">
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -61,7 +68,7 @@ if ($source_id > 0) {
 <body>
     <header class="m-header">
         <a href="m-history.php?client_id=<?= $client_id ?>"><i data-lucide="arrow-left"></i></a>
-        <div style="font-size:16px; font-weight:800; font-family:'Outfit';">MÍCHÁRNA</div>
+        <div style="font-size:16px; font-weight:800; font-family:'Outfit';"><?= htmlspecialchars($page_heading) ?></div>
         <div style="width:24px;"></div>
     </header>
 
@@ -74,7 +81,7 @@ if ($source_id > 0) {
         <div class="m-allergy-banner">
             <i data-lucide="alert-triangle" style="color:#ef4444; flex-shrink:0;"></i>
             <div>
-                <span class="m-allergy-title">POZOR: ALERGIE</span>
+                <span class="m-allergy-title">Alergické upozornění</span>
                 <div class="m-allergy-text"><?= nl2br(htmlspecialchars($client['allergy_note'])) ?></div>
             </div>
         </div>
@@ -86,6 +93,14 @@ if ($source_id > 0) {
         <input type="hidden" name="edit_id" value="<?= $edit_id ?>">
         <input type="hidden" name="mobile" value="1">
         <input type="hidden" name="visit_date" value="<?= date('Y-m-d') ?>">
+
+        <div class="m-builder-intro">
+            <div class="m-builder-intro-title">
+                <i data-lucide="sparkles" style="width:16px;height:16px;"></i>
+                <?= $edit_id > 0 ? 'Upravuješ uloženou návštěvu' : 'Rychlý zápis návštěvy' ?>
+            </div>
+            <div class="m-builder-intro-text">Namíchej misky, případně připiš krátkou poznámku a vše se uloží přímo do historie klientky.</div>
+        </div>
         
         <div class="m-section-title">RECEPTURA (Misky s barvou)</div>
         <div id="m-bowls"></div>
@@ -115,8 +130,18 @@ if ($source_id > 0) {
             </label>
         </div>
 
+        <div class="m-note-card">
+            <label for="mobile-note" class="m-note-label">
+                <i data-lucide="notebook-pen" style="width:16px;height:16px;"></i>
+                Rychlá poznámka k návštěvě
+            </label>
+            <textarea id="mobile-note" name="note" class="m-note-textarea" rows="3" placeholder="Např. příště nechat déle působit, citlivější pokožka, upravit poměr..."><?= htmlspecialchars($prefill_note) ?></textarea>
+            <div class="m-note-hint">Volitelné • poznámka se uloží přímo do historie klientky.</div>
+        </div>
+
         <div class="m-bottom-bar">
-            <button type="submit" class="btn-save-mobile">ULOŽIT DO KARTY ZÁKAZNICE</button>
+            <a href="m-history.php?client_id=<?= $client_id ?>" class="btn-back-mobile">Zrušit</a>
+            <button type="submit" class="btn-save-mobile"><?= htmlspecialchars($save_button_label) ?></button>
         </div>
     </form>
 
@@ -148,9 +173,9 @@ if ($source_id > 0) {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 // I když save_visit.php vrací redirect, fetch ho "skousne" a my se prostě jen přesměrujeme v okně
-                window.location.href = 'm-history.php?client_id=<?= $client_id ?>&success=1';
+                window.location.href = 'm-history.php?client_id=<?= $client_id ?>&success=<?= $success_state ?>';
             } catch (err) {
                 alert('Chyba při odesílání: ' + err);
                 btn.innerHTML = originalText;

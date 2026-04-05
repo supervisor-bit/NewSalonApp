@@ -66,7 +66,8 @@
     const MATERIALS_DATA = <?= json_encode(array_values(array_map(function($m) { 
         return [
             'id' => $m['id'], 
-            'name' => $m['category'] . ' - ' . $m['name'], 
+            'name' => $m['name'], 
+            'label' => trim($m['category'] . ' - ' . $m['name']),
             'needs_buying' => (int)$m['needs_buying'],
             'use_count' => (int)$m['use_count'],
             'category' => $m['category']
@@ -74,7 +75,14 @@
     }, $materials)), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 
     const PRODUCTS_DATA = <?= json_encode(array_values(array_map(function($p) { 
-        return ['id' => $p['id'], 'name' => $p['brand'] . ' - ' . $p['name'], 'price' => $p['price']]; 
+        return [
+            'id' => $p['id'],
+            'brand' => $p['brand'],
+            'name' => $p['name'],
+            'label' => trim($p['brand'] . ' - ' . $p['name']),
+            'price' => $p['price'],
+            'use_count' => (int)($p['use_count'] ?? 0)
+        ]; 
     }, $active_products)), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 </script>
 <script src="app.js?v=<?= time() ?>"></script>
@@ -731,7 +739,7 @@
         <?php if ($active_client): ?>
             
         <?php  if(!empty($active_client['allergy_note'])): ?>
-            <div class="alert-box" style="margin: 24px 32px 0 32px;"><i data-lucide="alert-triangle" style="width:20px;height:20px;"></i> POZOR: <?= nl2br(htmlspecialchars($active_client['allergy_note'])) ?></div>
+            <div class="alert-box" style="margin: 24px 32px 0 32px;"><i data-lucide="alert-triangle" style="width:20px;height:20px;"></i> Alergické upozornění: <?= nl2br(htmlspecialchars($active_client['allergy_note'])) ?></div>
         <?php  endif; ?>
 
         <div class="karta-header">
@@ -770,7 +778,7 @@
                 <?php  if(!empty($active_client['allergy_note'])): ?>
                     <button class="chip-btn chip-allergy" onclick="ukazUpravuVarovani()">
                         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                        Alergie: <?= mb_substr(htmlspecialchars($active_client['allergy_note']), 0, 35) ?>…
+                        Alergické upozornění: <?= mb_substr(htmlspecialchars($active_client['allergy_note']), 0, 28) ?>…
                     </button>
                 <?php  else: ?>
                     <button class="chip-btn chip-action" onclick="ukazUpravuVarovani()">
@@ -856,7 +864,8 @@
                     <?php  else: ?>
                         <?php  foreach($visits as $v): ?>
                             <?php  
-                                $vDone = !empty($v['price']) || !empty($v['note']); 
+                                // Návštěva je uzavřená až po vyúčtování, ne jen kvůli rychlé poznámce.
+                                $vDone = (int)($v['price'] ?? 0) > 0; 
                                 
                                 // Prepare summary for checkout/payment dialog
                                 $sHtml = "";
@@ -929,12 +938,14 @@
                                     <?php  if(!$vDone): ?>
                                         <div style="text-align:center; margin-bottom:14px;">
 
-                                            <button class="btn-ulozit" style="margin:0; background:#10b981; padding:9px 20px; font-size:13px; width:auto; display:inline-flex; align-items:center; gap:6px;" type="button" onclick='ukazCheckout(<?= $v['id'] ?>, <?= $total_products_sum ?>, "", <?= htmlspecialchars(json_encode($sHtml), ENT_QUOTES, "UTF-8") ?>, 0)'>
+                                            <button class="btn-ulozit" style="margin:0; background:#10b981; padding:9px 20px; font-size:13px; width:auto; display:inline-flex; align-items:center; gap:6px;" type="button" onclick='ukazCheckout(<?= $v['id'] ?>, <?= $total_products_sum ?>, <?= htmlspecialchars(json_encode((string)($v['note'] ?? "")), ENT_QUOTES, "UTF-8") ?>, <?= htmlspecialchars(json_encode($sHtml), ENT_QUOTES, "UTF-8") ?>, <?= $v['price'] ?? 0 ?>)'>
                                                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                                                 Vyúčtovat a uzavřít
                                             </button>
                                         </div>
-                                    <?php  elseif(!empty($v['note'])): ?>
+                                    <?php  endif; ?>
+
+                                    <?php  if(!empty($v['note'])): ?>
                                         <p style="margin:0 0 12px 0; font-size:13px; color:#64748b; font-style:italic; padding:8px; background:#f8fafc; border-radius:6px; border-left:3px solid #cbd5e1;"><?= nl2br(htmlspecialchars($v['note'])) ?></p>
                                     <?php  endif; ?>
 
@@ -1068,7 +1079,10 @@
                         <button type="button" class="btn-outline" onclick="pridatProduktRow('products-wrapper-new')">+ PŘIDAT PRODUKT PRO KLIENTKU</button>
                     </div>
                     
-                    <button type="submit" class="btn-ulozit">Uložit nákres a všechny misky do historie</button>
+                    <div style="display:flex; gap:12px; align-items:center; margin-top:24px; flex-wrap:wrap;">
+                        <button type="button" class="btn-cancel" onclick="ukazHistorii()" style="margin-top:0; width:auto; min-width:160px;">Zrušit</button>
+                        <button type="submit" class="btn-ulozit" style="margin-top:0; flex:1;">Uložit návštěvu a recepturu</button>
+                    </div>
                 </form>
 
                 <!-- POHLED 3: ÚPRAVA NÁVŠTĚVY -->
@@ -1125,7 +1139,10 @@
                         <button type="button" class="btn-outline" onclick="pridatProduktRow('products-wrapper-edit')">+ PŘIDAT PRODUKT PRO KLIENTKU</button>
                     </div>
                     
-                    <button type="submit" class="btn-ulozit">Uložit změny historie i receptur</button>
+                    <div style="display:flex; gap:12px; align-items:center; margin-top:24px; flex-wrap:wrap;">
+                        <button type="button" class="btn-cancel" onclick="ukazHistorii()" style="margin-top:0; width:auto; min-width:160px;">Zrušit úpravy</button>
+                        <button type="submit" class="btn-ulozit" style="margin-top:0; flex:1;">Uložit změny návštěvy</button>
+                    </div>
                 </form>
 
             </div>

@@ -7,7 +7,8 @@ require 'db.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $client_id = (int)$_POST['client_id'];
     $visit_date = $_POST['visit_date'];
-    $note = '';
+    $note_from_form = array_key_exists('note', $_POST);
+    $note = trim((string)($_POST['note'] ?? ''));
     $price = 0;
     
     // Služby (přidáno)
@@ -30,9 +31,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $old_data = $old_stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($old_data) {
-                // Nechceme přepsat cenu a poznámku nulou/prázdnem z mobilu
+                // Na mobilu necháváme původní datum a cenu, ale poznámku už lze pohodlně upravit.
                 $visit_date = $old_data['visit_date']; 
-                $note = $old_data['note'];
+                $note = $note_from_form ? $note : $old_data['note'];
                 $price = $old_data['price'];
             }
 
@@ -76,14 +77,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         $pdo->commit();
-        $_SESSION['msg'] = $edit_id > 0 ? "Návštěva upravena." : "Návštěva uložena.";
+        $_SESSION['msg'] = $edit_id > 0 ? "Změny návštěvy byly uloženy." : "Návštěva byla uložena do historie.";
     } catch(Exception $e) {
         $pdo->rollBack();
         $_SESSION['msg'] = "Chyba: " . $e->getMessage();
     }
 
     if ($mobile) {
-        header("Location: m-history.php?client_id=" . $client_id . "&success=1");
+        $success_state = $edit_id > 0 ? 'updated' : 'created';
+        header("Location: m-history.php?client_id=" . $client_id . "&success=" . $success_state);
     } else {
         header("Location: index.php?client_id=" . $client_id);
     }
