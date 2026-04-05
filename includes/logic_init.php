@@ -81,6 +81,15 @@ $vip_status = false;
 $avg_interval = null;
 
 if (!$setup_needed) {
+    try {
+        $clientCol = $pdo->query("SHOW COLUMNS FROM clients LIKE 'is_active'")->fetch();
+        if (!$clientCol) {
+            $pdo->exec("ALTER TABLE clients ADD COLUMN is_active TINYINT(1) DEFAULT 1");
+        }
+    } catch (Throwable $e) {
+        // Když se sloupec nepodaří přidat, aplikace poběží dál v původním režimu.
+    }
+
     // 1. Stáhnutí všech klientek pro levý panel (včetně použitých materiálů a dat návštěv pro hledání)
     $c_stmt = $pdo->query("
         SELECT c.*, 

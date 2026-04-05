@@ -18,6 +18,7 @@
     <script>
         const allActiveProducts = <?= json_encode(array_values($active_products ?: [])) ?>;
         const CSRF_TOKEN = <?= json_encode($_SESSION['csrf_token'] ?? '') ?>;
+        window.CSRF_TOKEN = CSRF_TOKEN;
         
         // PWA Registration
         if ('serviceWorker' in navigator) {
@@ -91,55 +92,99 @@
 
 <!-- LEVÝ PANEL -->
 <div class="sidebar" style="display: <?= $show_client_karta ? 'flex' : 'none' ?>;">
+    <?php
+        $client_group_counts = ['all' => 0, 'active' => 0, 'followup' => 0, 'new' => 0, 'inactive' => 0];
+        foreach ($clients as $client_meta) {
+            $is_active_meta = isset($client_meta['is_active']) ? (int)$client_meta['is_active'] : 1;
+            if (!$is_active_meta) {
+                $client_group_counts['inactive']++;
+                continue;
+            }
+
+            $client_group_counts['all']++;
+            $last_v_meta = $client_meta['last_visit_date'] ?? null;
+            $pref_i_meta = (int)($client_meta['preferred_interval'] ?: 8);
+            if (!$last_v_meta) {
+                $client_group_counts['new']++;
+                continue;
+            }
+            $days_since_meta = (time() - strtotime($last_v_meta)) / 86400;
+            $limit_days_meta = $pref_i_meta * 7;
+            if ($days_since_meta > $limit_days_meta) {
+                $client_group_counts['followup']++;
+            } else {
+                $client_group_counts['active']++;
+            }
+        }
+    ?>
     <div class="sidebar-header">
         <h2>Seznam klientek</h2>
         <div class="search-container">
             <i data-lucide="search"></i>
             <input type="text" id="hledani" class="search-bar" placeholder="Hledat klientku nebo telefon..." oninput="hledejKlientku()">
         </div>
+        <div class="sidebar-filters" aria-label="Skupiny klientek">
+            <button type="button" class="sidebar-filter-chip active" onclick="setClientGroupFilter('all', this)">Vše <span><?= $client_group_counts['all'] ?></span></button>
+            <button type="button" class="sidebar-filter-chip" onclick="setClientGroupFilter('active', this)">Aktivní <span><?= $client_group_counts['active'] ?></span></button>
+            <button type="button" class="sidebar-filter-chip" onclick="setClientGroupFilter('followup', this)">Oslovit <span><?= $client_group_counts['followup'] ?></span></button>
+            <button type="button" class="sidebar-filter-chip" onclick="setClientGroupFilter('new', this)">Nové <span><?= $client_group_counts['new'] ?></span></button>
+            <button type="button" class="sidebar-filter-chip" onclick="setClientGroupFilter('inactive', this)">Neaktivní <span><?= $client_group_counts['inactive'] ?></span></button>
+        </div>
     </div>
     <div class="client-list">
         <?php  foreach ($clients as $c): ?>
             <?php  
-                $initials = mb_strtoupper(mb_substr($c['first_name'], 0, 1) . mb_substr($c['last_name'], 0, 1)); 
+                $initials = mb_strtoupper(mb_substr($c['first_name'], 0, 1) . mb_substr($c['last_name'], 0, 1));
+                $client_is_active = isset($c['is_active']) ? (int)$c['is_active'] : 1;
+                $status_color = '#10b981';
+                $reason = 'Aktivní klientka';
+                $client_group = 'active';
+
+                $last_v = $c['last_visit_date'] ?? null;
+                $pref_i = (int)($c['preferred_interval'] ?: 8);
+
+                if (!$client_is_active) {
+                    $status_color = '#94a3b8';
+                    $reason = 'Neaktivní klientka';
+                } elseif (!$last_v) {
+                    $status_color = '#94a3b8';
+                    $reason = 'Nová klientka bez historie';
+                    $client_group = 'new';
+                } else {
+                    $days_since = (time() - strtotime($last_v)) / 86400;
+                    $limit_days = $pref_i * 7;
+
+                    if ($days_since > ($limit_days + 14)) {
+                        $status_color = '#ef4444';
+                        $reason = 'Dlouho nebyla';
+                        $client_group = 'followup';
+                    } elseif ($days_since > $limit_days) {
+                        $status_color = '#f59e0b';
+                        $reason = 'Měla by přijít';
+                        $client_group = 'followup';
+                    }
+                }
             ?>
-            <div onclick="window.location.href='index.php?client_id=<?=$c['id']?>'" class="client-row <?= ($c['id'] == $client_id) ? 'active' : '' ?>" data-phone="<?= htmlspecialchars((string)($c['phone'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+            <div onclick="window.location.href='index.php?client_id=<?=$c['id']?>'" class="client-row <?= ($c['id'] == $client_id) ? 'active' : '' ?> <?= !$client_is_active ? 'is-inactive' : '' ?>" data-phone="<?= htmlspecialchars((string)($c['phone'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" data-group="<?= htmlspecialchars($client_group, ENT_QUOTES, 'UTF-8') ?>" data-is-active="<?= $client_is_active ?>" style="<?= !$client_is_active ? 'display:none;' : '' ?>">
                 <div class="avatar"><?= $initials ?></div>
                 <div class="client-info">
                     <h3><?= htmlspecialchars($c['first_name'] . ' ' . $c['last_name']) ?></h3>
                     <p>
                         <i data-lucide="phone" style="width:10px; height:10px; opacity:0.5;"></i>
                         <?= htmlspecialchars($c['phone'] ?: 'Bez tel.') ?>
-                        
-                        <?php 
-                            // HLÍDAČ (RETENCE)
-                            $status_color = '#10b981'; // default green
-                            $reason = 'V pořádku';
-                            
-                            $last_v = $c['last_visit_date'];
-                            $pref_i = $c['preferred_interval'] ?: 8; // default 8 weeks if not set
-                            
-                            if ($last_v) {
-                                $days_since = (time() - strtotime($last_v)) / 86400;
-                                $limit_days = $pref_i * 7;
-                                
-                                if ($days_since > ($limit_days + 14)) { $status_color = '#ef4444'; $reason = 'Dlouho nebyla'; }
-                                elseif ($days_since > $limit_days) { $status_color = '#f59e0b'; $reason = 'Měla by přijít'; }
-                            }
-                        ?>
                     </p>
                 </div>
                 <span title="Stav retence: <?= $reason ?>" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:<?= $status_color ?>; box-shadow: 0 0 5px <?= $status_color ?>44; flex-shrink:0; margin-right: 5px;"></span>
                 <!-- KEBAB MENU TLAČÍTKO -->
                 <div onclick="event.preventDefault(); event.stopPropagation();">
-                    <button class="btn-menu" type="button" onclick='toggleMenu(event, <?= $c['id'] ?>, <?= json_encode($c['first_name']) ?>, <?= json_encode($c['last_name']) ?>, <?= json_encode($c['phone']) ?>, <?= (int)($c['preferred_interval'] ?? 0) ?>)'>⋮</button>
+                    <button class="btn-menu" type="button" onclick='toggleMenu(event, <?= $c['id'] ?>, <?= json_encode($c['first_name']) ?>, <?= json_encode($c['last_name']) ?>, <?= json_encode($c['phone']) ?>, <?= (int)($c['preferred_interval'] ?? 0) ?>, <?= (int)($c['is_active'] ?? 1) ?>)'>⋮</button>
                 </div>
             </div>
         <?php  endforeach; ?>
     </div>
     <!-- POČÍTADLO KLIENTEK -->
     <div style="padding:15px; border-top:1px solid #e2e8f0; color:#94a3b8; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; background:#fff; border-radius: 0 0 0 20px;">
-        Celkem: <?= count($clients) ?> klientek
+        Zobrazeno: <span id="clients-visible-count"><?= $client_group_counts['all'] ?></span> / <?= count($clients) ?> klientek
     </div>
 </div>
 

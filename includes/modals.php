@@ -59,6 +59,10 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 5px;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
         Upravit osobní údaje
     </a>
+    <a href="#" id="menu-global-toggle-status">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 5px;"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+        Přesunout do neaktivních
+    </a>
     <div style="border-top:1px solid #e2e8f0; margin: 4px 0;"></div>
     <a href="#" class="danger" id="menu-global-delete">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 5px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
@@ -170,6 +174,20 @@
                 Ano, trvale smazat
             </a>
             <button type="button" class="btn-cancel-new" onclick="schovSmazatModal()">Zrušit</button>
+        </div>
+    </div>
+</div>
+
+<div id="action-dialog-modal" class="modal">
+    <div class="modal-content" style="text-align:center; max-width: 400px;">
+        <div id="action-dialog-icon" style="background:#fee2e2; width:72px; height:72px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 24px auto; color:#ef4444;">
+            <i data-lucide="shield-alert" style="width:34px; height:34px;"></i>
+        </div>
+        <h3 id="action-dialog-title" style="margin-bottom:12px; font-size:22px; color:#1e293b; font-weight:800;">Potvrzení</h3>
+        <p id="action-dialog-text" style="color:#64748b; font-size:15px; margin-bottom:28px; line-height:1.6;">Opravdu chcete pokračovat?</p>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+            <button type="button" id="action-dialog-confirm" class="btn-danger-new" onclick="closeActionDialog(true)">Pokračovat</button>
+            <button type="button" id="action-dialog-cancel" class="btn-cancel-new" onclick="closeActionDialog(false)">Zrušit</button>
         </div>
     </div>
 </div>

@@ -17,6 +17,7 @@ CREATE TABLE `clients` (
   `last_name` VARCHAR(100) NOT NULL,
   `phone` VARCHAR(50) DEFAULT NULL,
   `allergy_note` VARCHAR(255) DEFAULT NULL,
+  `is_active` TINYINT(1) DEFAULT 1,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

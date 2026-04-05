@@ -6,6 +6,7 @@ require_once 'db.php';
 
 try {
     echo "Kontroluji databázi...\n";
+
     $result = $pdo->query("DESCRIBE materials");
     $columns = $result->fetchAll(PDO::FETCH_COLUMN);
     
@@ -15,6 +16,15 @@ try {
         echo "Sloupec byl úspěšně přidán.\n";
     } else {
         echo "Sloupec 'needs_buying' už existuje.\n";
+    }
+
+    $clientColumns = $pdo->query("DESCRIBE clients")->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('is_active', $clientColumns)) {
+        echo "Sloupec 'is_active' u klientek chybí. Přidávám ho...\n";
+        $pdo->exec("ALTER TABLE clients ADD COLUMN is_active TINYINT(1) DEFAULT 1");
+        echo "Sloupec pro neaktivní klientky byl úspěšně přidán.\n";
+    } else {
+        echo "Sloupec 'is_active' u klientek už existuje.\n";
     }
     
     echo "Povedlo se! Aplikace by měla být zase funkční.\n";

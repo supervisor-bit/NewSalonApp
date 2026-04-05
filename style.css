@@ -155,6 +155,68 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 }
 .search-bar:focus { outline: none; border-color: var(--primary) !important; background: #fff !important; box-shadow: 0 0 0 4px rgba(197, 160, 89, 0.1); }
 
+.sidebar-filters {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    margin-top: 10px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.sidebar-filters::-webkit-scrollbar {
+    display: none;
+}
+
+.sidebar-filter-chip {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #64748b;
+    border-radius: 999px;
+    padding: 5px 8px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    transition: 0.2s;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-height: 28px;
+}
+
+.sidebar-filter-chip span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.14);
+    font-size: 9px;
+}
+
+.sidebar-filter-chip:hover {
+    border-color: rgba(197, 160, 89, 0.35);
+    color: var(--primary-dark);
+    background: #fffdf8;
+}
+
+.sidebar-filter-chip.active {
+    background: rgba(197, 160, 89, 0.12);
+    color: var(--primary-dark);
+    border-color: rgba(197, 160, 89, 0.35);
+}
+
+.sidebar-filter-chip.active span {
+    background: rgba(197, 160, 89, 0.18);
+}
+
 .client-list { flex: 1; overflow-y: auto; padding: 12px; min-height: 0; }
 .client-row { 
     padding: 14px 12px; 
@@ -171,6 +233,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 }
 .client-row:hover { background: #f8fafc; }
 .client-row.active { background: rgba(197, 160, 89, 0.08); border-color: rgba(197, 160, 89, 0.15); }
+.client-row.is-inactive { opacity: 0.72; }
+.client-row.is-inactive .avatar { background: #e2e8f0; color: #64748b; }
 
 /* Avatar initials */
 .avatar {

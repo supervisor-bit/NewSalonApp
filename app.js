@@ -8,9 +8,65 @@
 
     function showModalFlex(id) { document.getElementById(id).style.display = 'flex'; }
     function hideModal(id) { document.getElementById(id).style.display = 'none'; }
+    function getCsrfToken() {
+        if (typeof window !== 'undefined' && window.CSRF_TOKEN) return window.CSRF_TOKEN;
+        if (typeof CSRF_TOKEN !== 'undefined') return CSRF_TOKEN;
+        return '';
+    }
     function withCsrf(url) {
-        if (!window.CSRF_TOKEN) return url;
-        return url + (url.includes('?') ? '&' : '?') + 'csrf_token=' + encodeURIComponent(window.CSRF_TOKEN);
+        const token = getCsrfToken();
+        if (!token) return url;
+        return url + (url.includes('?') ? '&' : '?') + 'csrf_token=' + encodeURIComponent(token);
+    }
+
+    let actionDialogResolver = null;
+    function openActionDialog(options = {}) {
+        const modal = document.getElementById('action-dialog-modal');
+        if (!modal) return Promise.resolve(false);
+
+        const {
+            title = 'Potvrzení',
+            message = '',
+            confirmText = 'Pokračovat',
+            cancelText = 'Zrušit',
+            variant = 'danger',
+            showCancel = true
+        } = options;
+
+        const titleEl = document.getElementById('action-dialog-title');
+        const textEl = document.getElementById('action-dialog-text');
+        const confirmBtn = document.getElementById('action-dialog-confirm');
+        const cancelBtn = document.getElementById('action-dialog-cancel');
+        const iconWrap = document.getElementById('action-dialog-icon');
+
+        if (titleEl) titleEl.textContent = title;
+        if (textEl) textEl.textContent = message;
+        if (confirmBtn) {
+            confirmBtn.textContent = confirmText;
+            confirmBtn.style.background = variant === 'danger' ? '#ef4444' : 'var(--primary)';
+            confirmBtn.style.boxShadow = variant === 'danger'
+                ? '0 4px 6px -1px rgba(239, 68, 68, 0.2)'
+                : '0 4px 10px rgba(197, 160, 89, 0.25)';
+        }
+        if (cancelBtn) {
+            cancelBtn.textContent = cancelText;
+            cancelBtn.style.display = showCancel ? 'inline-flex' : 'none';
+        }
+        if (iconWrap) {
+            iconWrap.style.background = variant === 'danger' ? '#fee2e2' : '#fff8e6';
+            iconWrap.style.color = variant === 'danger' ? '#ef4444' : 'var(--primary-dark)';
+        }
+
+        showModalFlex('action-dialog-modal');
+        return new Promise(resolve => { actionDialogResolver = resolve; });
+    }
+
+    function closeActionDialog(result = false) {
+        hideModal('action-dialog-modal');
+        if (actionDialogResolver) {
+            actionDialogResolver(result);
+            actionDialogResolver = null;
+        }
     }
 
     function skryjVsechnyPohledy() {
@@ -101,7 +157,7 @@
         try {
             const formData = new FormData();
             formData.append('material_id', id);
-            formData.append('csrf_token', window.CSRF_TOKEN || '');
+            formData.append('csrf_token', getCsrfToken());
             const resp = await fetch('api_shopping.php', { method: 'POST', body: formData });
             const json = await resp.json();
             if(json.success && !json.new_status) {
@@ -1101,9 +1157,63 @@
         .catch(console.error);
     }
 
+    async function toggleClientAjax(clientId, isCurrentlyActive) {
+        const confirmed = await openActionDialog({
+            title: isCurrentlyActive ? 'Přesunout do neaktivních?' : 'Vrátit do hlavního seznamu?',
+            message: isCurrentlyActive
+                ? 'Klientka se skryje z běžného seznamu, ale zůstane dostupná ve filtru Neaktivní.'
+                : 'Klientka se znovu ukáže v hlavním seznamu a bude běžně dostupná.',
+            confirmText: isCurrentlyActive ? 'Přesunout' : 'Vrátit zpět',
+            cancelText: 'Zrušit',
+            variant: isCurrentlyActive ? 'danger' : 'primary',
+            showCancel: true
+        });
+
+        if (!confirmed) return;
+
+        try {
+            const formData = new FormData();
+            formData.append('client_id', String(clientId));
+            formData.append('csrf_token', getCsrfToken());
+
+            const response = await fetch('toggle_client.php?ajax=1', {
+                method: 'POST',
+                body: formData
+            });
+
+            const raw = await response.text();
+            let data = null;
+
+            try {
+                data = JSON.parse(raw);
+            } catch (e) {
+                throw new Error('Server vrátil nečekanou odpověď. Obnov stránku a zkus to znovu.');
+            }
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Změna se nepodařila.');
+            }
+
+            if (data.is_active) {
+                window.location.href = 'index.php?client_id=' + clientId;
+            } else {
+                window.location.href = 'index.php';
+            }
+        } catch (err) {
+            console.error(err);
+            await openActionDialog({
+                title: 'Přesun se nepodařil',
+                message: err && err.message ? err.message : 'Změna stavu klientky se nepodařila.',
+                confirmText: 'Rozumím',
+                variant: 'danger',
+                showCancel: false
+            });
+        }
+    }
+
     // DROPDOWN MENU - GLOBÁLNÍ
     let activeDropdownId = null;
-    function toggleMenu(event, clientId, cFirst, cLast, cPhone, cInterval) {
+    function toggleMenu(event, clientId, cFirst, cLast, cPhone, cInterval, cIsActive) {
         event.preventDefault(); event.stopPropagation();
         let menu = document.getElementById('global-dropdown');
         if (activeDropdownId === clientId && menu.style.display === 'block') {
@@ -1120,6 +1230,18 @@
             e.preventDefault(); e.stopPropagation(); menu.style.display = 'none'; 
             ukazUpravuProfilu(e, clientId, cFirst, cLast, cPhone, cInterval); 
         };
+
+        const toggleLink = document.getElementById('menu-global-toggle-status');
+        if (toggleLink) {
+            toggleLink.innerHTML = cIsActive
+                ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 5px;"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>Přesunout do neaktivních'
+                : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 5px;"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>Vrátit do seznamu';
+            toggleLink.onclick = function(e) {
+                e.preventDefault(); e.stopPropagation(); menu.style.display = 'none';
+                toggleClientAjax(clientId, !!cIsActive);
+            };
+        }
+
         document.getElementById('menu-global-delete').onclick = function(e) { 
             e.preventDefault(); e.stopPropagation(); menu.style.display = 'none'; 
             ukazSmazatModal('delete_client.php?client_id=' + clientId); 
@@ -1134,6 +1256,8 @@
     });
 
     // NAŠEPTÁVAČ
+    let activeClientGroup = 'all';
+
     function normalizeSearchText(value) {
         return String(value || '')
             .toLowerCase()
@@ -1141,17 +1265,51 @@
             .replace(/[\u0300-\u036f]/g, '');
     }
 
+    function matchesClientGroup(row) {
+        const isActive = (row.getAttribute('data-is-active') || '1') !== '0';
+
+        if (activeClientGroup === 'inactive') {
+            return !isActive;
+        }
+
+        if (!isActive) {
+            return false;
+        }
+
+        if (activeClientGroup === 'all') return true;
+        return (row.getAttribute('data-group') || 'all') === activeClientGroup;
+    }
+
+    function updateVisibleClientCount(visibleCount, totalCount) {
+        const countEl = document.getElementById('clients-visible-count');
+        if (countEl) countEl.textContent = String(visibleCount ?? totalCount ?? 0);
+    }
+
+    function setClientGroupFilter(group, btn) {
+        activeClientGroup = group || 'all';
+        document.querySelectorAll('.sidebar-filter-chip').forEach(chip => chip.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        hledejKlientku();
+    }
+
     function hledejKlientku() {
         let filter = document.getElementById('hledani').value.trim();
         let normalizedFilter = normalizeSearchText(filter);
         let compactFilter = normalizedFilter.replace(/\s+/g, '');
         let rows = document.querySelectorAll('.client-row');
+        let visibleCount = 0;
+
         rows.forEach(function(row) {
             let name = normalizeSearchText(row.querySelector('h3').innerText);
             let phone = normalizeSearchText(row.getAttribute('data-phone') || '');
             let normalizedPhone = phone.replace(/\s+/g, '');
-            row.style.display = (!normalizedFilter || name.includes(normalizedFilter) || normalizedPhone.includes(compactFilter)) ? "" : "none";
+            let matchesText = !normalizedFilter || name.includes(normalizedFilter) || normalizedPhone.includes(compactFilter);
+            let shouldShow = matchesText && matchesClientGroup(row);
+            row.style.display = shouldShow ? '' : 'none';
+            if (shouldShow) visibleCount++;
         });
+
+        updateVisibleClientCount(visibleCount, rows.length);
     }
 
     // --- PREMIUM ACCORDION LOGIC ---
@@ -1256,7 +1414,7 @@
         try {
             const formData = new FormData();
             formData.append('material_id', id);
-            formData.append('csrf_token', window.CSRF_TOKEN || '');
+            formData.append('csrf_token', getCsrfToken());
             const resp = await fetch('api_shopping.php', { method: 'POST', body: formData });
             const json = await resp.json();
             if(json.success) {
