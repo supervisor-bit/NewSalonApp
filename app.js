@@ -76,6 +76,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         updateDesktopInstallUi();
+        initDirectSaleAutocomplete();
     });
 
     let actionDialogResolver = null;
@@ -135,6 +136,7 @@
             'new-visit-box', 
             'edit-visit-box', 
             'accounting-box', 
+            'direct-sales-box',
             'settings-dashboard-box', 
             'client-karta-box'
         ];
@@ -774,6 +776,43 @@
     }
 
     function odeslatDoNaseptavaceProduktu(searchEl, hiddenEl, listEl, priceEl, amountEl) {
+        function findProductMatch(rawValue) {
+            const query = normalizeSearchText(rawValue)
+                .replace(/[–—-]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            if (!query) return null;
+
+            return PRODUCTS_DATA.find(p => {
+                const meta = getProductMeta(p);
+                const candidates = [
+                    meta.inputValue,
+                    `${p.brand || ''} - ${p.name || ''}`,
+                    `${p.brand || ''} ${p.name || ''}`,
+                    p.name || ''
+                ].map(val => normalizeSearchText(val).replace(/[–—-]/g, ' ').replace(/\s+/g, ' ').trim());
+
+                return candidates.includes(query);
+            }) || null;
+        }
+
+        function applyProductSelection(product, moveFocus = true) {
+            const meta = getProductMeta(product);
+            hiddenEl.value = product.id;
+            searchEl.value = meta.inputValue;
+            if (!priceEl.value || priceEl.dataset.autofill !== 'manual') {
+                priceEl.value = product.price;
+                priceEl.dataset.autofill = 'auto';
+            }
+            searchEl.setCustomValidity('');
+            listEl.style.display = 'none';
+            if(amountEl && moveFocus) {
+                amountEl.focus();
+                amountEl.select();
+            }
+        }
+
         function updateList(val = '') {
             val = val.toLowerCase().trim();
             listEl.innerHTML = '';
@@ -817,22 +856,36 @@
                 `;
                 div.className = 'ac-item' + (idx === 0 ? ' ac-active' : '');
                 div.addEventListener('click', function() {
-                    hiddenEl.value = p.id;
-                    searchEl.value = meta.inputValue;
-                    priceEl.value = p.price;
-                    listEl.style.display = 'none';
-                    if(amountEl) {
-                        amountEl.focus();
-                        amountEl.select();
-                    }
+                    applyProductSelection(p, true);
                 });
                 listEl.appendChild(div);
             });
             listEl.style.display = 'block';
         }
 
-        searchEl.addEventListener('input', function() { updateList(this.value); });
+        searchEl.addEventListener('input', function() {
+            hiddenEl.value = '';
+            searchEl.setCustomValidity('');
+            updateList(this.value);
+        });
         searchEl.addEventListener('focus', function() { updateList(this.value); this.select(); });
+        searchEl.addEventListener('change', function() {
+            const match = findProductMatch(this.value);
+            if (match) applyProductSelection(match, false);
+        });
+        searchEl.addEventListener('blur', function() {
+            const match = findProductMatch(this.value);
+            if (match) {
+                applyProductSelection(match, false);
+            } else if (this.value.trim()) {
+                searchEl.setCustomValidity('Vyberte produkt z nabídky.');
+            }
+            setTimeout(() => { listEl.style.display = 'none'; }, 120);
+        });
+
+        priceEl.addEventListener('input', function() {
+            this.dataset.autofill = this.value ? 'manual' : 'auto';
+        });
 
         searchEl.addEventListener('keydown', function(e) {
             let items = listEl.querySelectorAll('.ac-item');
@@ -844,6 +897,9 @@
                     items[activeIdx].click();
                 } else if (items.length > 0) {
                     items[0].click();
+                } else {
+                    const match = findProductMatch(this.value);
+                    if (match) applyProductSelection(match, true);
                 }
                 return;
             }
@@ -1087,6 +1143,26 @@
         if(newVisitBox) newVisitBox.scrollIntoView({ behavior: 'smooth' });
     }
 
+    function initDirectSaleAutocomplete() {
+        const wrapper = document.getElementById('direct-sale-products-wrapper');
+        if (!wrapper) return;
+        if (wrapper.children.length === 0) {
+            pridatProduktRow('direct-sale-products-wrapper');
+        }
+    }
+
+    function scrollDirectSaleRowIntoView(rowEl) {
+        if (!rowEl) return;
+        const salesBox = document.getElementById('direct-sales-box');
+        if (salesBox) {
+            salesBox.scrollTo({
+                top: Math.max(0, rowEl.offsetTop - 160),
+                behavior: 'smooth'
+            });
+        }
+        rowEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
     function pridatProduktRow(wrapperId, productId = '', price = '', amount = 1) {
         const wrapper = document.getElementById(wrapperId);
         const tpl = document.getElementById('product-row-template').content.cloneNode(true);
@@ -1100,7 +1176,7 @@
         if (productId) {
             hiddenEl.value = productId;
             let pMatch = PRODUCTS_DATA.find(p => p.id == productId);
-            if(pMatch) searchEl.value = pMatch.name;
+            if(pMatch) searchEl.value = getProductMeta(pMatch).inputValue;
             priceEl.value = price;
             amountEl.value = amount;
         }
@@ -1128,8 +1204,9 @@
         // Plynulé odscrollování na nový produkt
         if (!productId) {
             setTimeout(() => {
-                wrapper.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                let s = wrapper.lastElementChild.querySelector('.product-search');
+                const lastRow = wrapper.lastElementChild;
+                scrollDirectSaleRowIntoView(lastRow);
+                let s = lastRow?.querySelector('.product-search');
                 if(s) s.focus({preventScroll: true});
             }, 100);
         }

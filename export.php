@@ -13,6 +13,13 @@ $cz_months_full = [
     9=>"Září", 10=>"Říjen", 11=>"Listopad", 12=>"Prosinec"
 ];
 
+$has_direct_sales = false;
+try {
+    $has_direct_sales = (bool)$pdo->query("SHOW TABLES LIKE 'direct_sales'")->fetch();
+} catch (Throwable $e) {
+    $has_direct_sales = false;
+}
+
 // ============================================================
 // NOVÝ REŽIM: Roční přehled PO MĚSÍCÍCH
 // ============================================================
@@ -28,6 +35,12 @@ if ($range === 'year_monthly') {
         $p_stmt = $pdo->prepare("SELECT SUM(vp.price_sold * vp.amount) FROM visit_products vp JOIN visits v ON vp.visit_id = v.id WHERE v.visit_date LIKE ?");
         $p_stmt->execute([$ym . '%']);
         $produkty = (int)$p_stmt->fetchColumn();
+
+        if ($has_direct_sales) {
+            $dp_stmt = $pdo->prepare("SELECT SUM(unit_price * quantity) FROM direct_sales WHERE sold_at LIKE ?");
+            $dp_stmt->execute([$ym . '%']);
+            $produkty += (int)$dp_stmt->fetchColumn();
+        }
 
         $sluzby = (int)($row['sluzby'] ?? 0);
         $months_data[$m] = [
@@ -222,6 +235,31 @@ foreach($rows as $k => $r) {
     $p_stmt = $pdo->prepare("SELECT SUM(price_sold * amount) FROM visit_products WHERE visit_id = ?");
     $p_stmt->execute([$r['visit_id']]);
     $rows[$k]['prod_price'] = (int)$p_stmt->fetchColumn();
+}
+
+if ($has_direct_sales) {
+    $direct_query = "
+        SELECT ds.sold_at as visit_date, ds.quantity, ds.unit_price, ds.note, p.brand, p.name
+        FROM direct_sales ds
+        JOIN products p ON ds.product_id = p.id
+        " . str_replace('v.visit_date', 'ds.sold_at', $date_clause) . "
+        ORDER BY ds.sold_at DESC, ds.id DESC
+    ";
+
+    $direct_rows = $pdo->query($direct_query)->fetchAll();
+    foreach ($direct_rows as $sale) {
+        $rows[] = [
+            'visit_date' => $sale['visit_date'],
+            'first_name' => 'Rychlý prodej',
+            'last_name' => trim(($sale['brand'] ?? '') . ' ' . ($sale['name'] ?? '')) . ((int)$sale['quantity'] > 1 ? ' ×' . (int)$sale['quantity'] : ''),
+            'work_price' => 0,
+            'prod_price' => (int)$sale['unit_price'] * (int)$sale['quantity'],
+        ];
+    }
+
+    usort($rows, static function ($a, $b) {
+        return strcmp($b['visit_date'], $a['visit_date']);
+    });
 }
 
 if ($type === 'csv') {

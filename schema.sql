@@ -2,6 +2,7 @@ CREATE DATABASE IF NOT EXISTS `karta_db` CHARACTER SET utf8mb4 COLLATE utf8mb4_u
 USE `karta_db`;
 
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS `direct_sales`;
 DROP TABLE IF EXISTS `visit_products`;
 DROP TABLE IF EXISTS `products`;
 DROP TABLE IF EXISTS `formulas`;
@@ -82,6 +83,17 @@ CREATE TABLE IF NOT EXISTS `visit_products` (
   `price_sold` INT NOT NULL,
   `amount` INT DEFAULT 1,
   FOREIGN KEY (`visit_id`) REFERENCES `visits`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `direct_sales` (
+  `id` INT PRIMARY KEY AUTO_INCREMENT,
+  `product_id` INT NOT NULL,
+  `quantity` INT NOT NULL DEFAULT 1,
+  `unit_price` INT NOT NULL DEFAULT 0,
+  `sold_at` DATE NOT NULL,
+  `note` VARCHAR(255) DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

@@ -45,10 +45,13 @@
             <i data-lucide="plus" style="width:24px; height:24px;"></i>
         </a>
         <div style="border-top:1px solid rgba(255,255,255,0.1); width:32px; margin:5px 0;"></div>
-        <a href="index.php" class="rail-item <?= (!$show_stats && !$show_settings && !$show_accounting) ? 'active' : '' ?>" id="nav-clients" title="Klienti">
+        <a href="index.php" class="rail-item <?= (!$show_stats && !$show_settings && !$show_accounting && !$show_sales) ? 'active' : '' ?>" id="nav-clients" title="Klienti">
             <i data-lucide="users" style="width:24px; height:24px;"></i>
         </a>
         <div style="margin-top:auto;">
+            <a href="index.php?view=sales" class="rail-item <?= $show_sales ? 'active' : '' ?>" id="nav-sales" title="Rychlý prodej">
+                <i data-lucide="shopping-bag" style="width:24px; height:24px;"></i>
+            </a>
             <a href="index.php?view=settings" class="rail-item <?= $show_settings ? 'active' : '' ?>" id="nav-settings" title="Správa salonu">
                 <i data-lucide="settings" style="width:24px; height:24px;"></i>
             </a>
@@ -226,7 +229,7 @@
                 </div>
             </div>
             <!-- EXPORTY -->
-            <div style="display:flex; gap:12px;">
+            <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:flex-end;">
                 <a href="export.php?range=<?= $range ?: 'this_month' ?>&type=csv" class="btn-outline" style="background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.2); color:#fff; text-transform:none; padding:10px 18px;" title="Export do Excelu">
                     <i data-lucide="file-spreadsheet" style="width:16px;height:16px;color:#10b981;"></i> CSV
                 </a>
@@ -254,7 +257,7 @@
             
             <!-- VIEW: DNES -->
             <div id="acc-view-dnes" class="acc-view">
-                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:25px; margin-bottom:40px;">
+                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:20px; margin-bottom:32px;">
                     <div class="stat-card-acc-v2">
                         <div class="icon-box"><i data-lucide="scissors"></i></div>
                         <span class="label">Služby dnes</span>
@@ -263,36 +266,74 @@
                     </div>
                     <div class="stat-card-acc-v2">
                         <div class="icon-box"><i data-lucide="package"></i></div>
-                        <span class="label">Produkty dnes</span>
+                        <span class="label">Produkty klientům</span>
                         <div class="value"><?= number_format($today_p_sum, 0, ',', ' ') ?> Kč</div>
-                        <span class="sub">Prodej na doma</span>
+                        <span class="sub">Při návštěvách</span>
+                    </div>
+                    <div class="stat-card-acc-v2" style="border-top:3px solid #0ea5e9;">
+                        <div class="icon-box"><i data-lucide="shopping-bag"></i></div>
+                        <span class="label">Rychlý prodej</span>
+                        <div class="value"><?= number_format($today_direct_sales_sum, 0, ',', ' ') ?> Kč</div>
+                        <span class="sub"><?= $today_direct_sales_count ?>x bez klienta</span>
                     </div>
                     <div class="stat-card-acc-v2 gold-theme">
                         <div class="icon-box"><i data-lucide="wallet"></i></div>
                         <span class="label">Celkem k vybrání</span>
-                        <div class="value"><?= number_format(($today_stats['sum_s'] ?: 0) + $today_p_sum, 0, ',', ' ') ?> Kč</div>
-                        <span class="sub">Vše v hotovosti</span>
+                        <div class="value"><?= number_format(($today_stats['sum_s'] ?: 0) + $today_p_sum + $today_direct_sales_sum, 0, ',', ' ') ?> Kč</div>
+                        <span class="sub">Služby + všechny produkty</span>
                     </div>
                 </div>
 
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                    <h3 class="sekce-nadpis" style="margin:0;">Seznam dnešních klientů</h3>
-                    <span style="font-size:12px; color:#94a3b8; font-weight:700; text-transform:uppercase;"><?= date('d. m. Y') ?></span>
-                </div>
-                
-                <div class="acc-list-premium">
-                    <?php if(empty($today_visits_list)): ?>
-                        <div style="padding:60px; text-align:center; color:#94a3b8; font-style:italic; background:#fff; border-radius:20px;">Dnes zatím žádné vyúčtované návštěvy.</div>
-                    <?php else: foreach($today_visits_list as $tv): ?>
-                        <div class="acc-row-v2">
-                            <div class="row-avatar"><?= mb_strtoupper(mb_substr($tv['first_name'],0,1).mb_substr($tv['last_name'],0,1)) ?></div>
-                            <div class="row-info">
-                                <div class="name"><?= htmlspecialchars($tv['first_name'] . ' ' . $tv['last_name']) ?></div>
-                                <div class="note"><?= htmlspecialchars($tv['note'] ?: 'Základní ošetření') ?></div>
-                            </div>
-                            <div class="row-amount"><?= number_format($tv['price'], 0, ',', ' ') ?> Kč</div>
+                <div style="display:grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr); gap:24px; align-items:start;">
+                    <div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                            <h3 class="sekce-nadpis" style="margin:0;">Seznam dnešních klientů</h3>
+                            <span style="font-size:12px; color:#94a3b8; font-weight:700; text-transform:uppercase;"><?= date('d. m. Y') ?></span>
                         </div>
-                    <?php endforeach; endif; ?>
+                        
+                        <div class="acc-list-premium">
+                            <?php if(empty($today_visits_list)): ?>
+                                <div style="padding:60px; text-align:center; color:#94a3b8; font-style:italic; background:#fff; border-radius:20px;">Dnes zatím žádné vyúčtované návštěvy.</div>
+                            <?php else: foreach($today_visits_list as $tv): ?>
+                                <div class="acc-row-v2">
+                                    <div class="row-avatar"><?= mb_strtoupper(mb_substr($tv['first_name'],0,1).mb_substr($tv['last_name'],0,1)) ?></div>
+                                    <div class="row-info">
+                                        <div class="name"><?= htmlspecialchars($tv['first_name'] . ' ' . $tv['last_name']) ?></div>
+                                        <div class="note"><?= htmlspecialchars($tv['note'] ?: 'Základní ošetření') ?></div>
+                                    </div>
+                                    <div class="row-amount"><?= number_format($tv['price'], 0, ',', ' ') ?> Kč</div>
+                                </div>
+                            <?php endforeach; endif; ?>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:18px;">
+                        <div class="sekce" style="margin-bottom:0;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px;">
+                                <span class="sekce-nadpis" style="margin:0;">Dnešní rychlé prodeje</span>
+                                <span style="font-size:11px; color:#64748b; font-weight:700;"><?= $today_direct_sales_count ?> záznamů</span>
+                            </div>
+
+                            <?php if(empty($today_direct_sales_list)): ?>
+                                <div style="padding:16px; background:#f8fafc; border:1px dashed #e2e8f0; border-radius:14px; color:#64748b; font-size:13px;">Zatím tu není žádný samostatný prodej bez klienta.</div>
+                            <?php else: ?>
+                                <div style="display:flex; flex-direction:column; gap:10px;">
+                                    <?php foreach($today_direct_sales_list as $ds): ?>
+                                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:12px 14px; border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0;">
+                                            <div>
+                                                <div style="font-size:13px; font-weight:800; color:#334155;"><?= htmlspecialchars(trim(($ds['brand'] ?? '') . ' ' . ($ds['name'] ?? ''))) ?></div>
+                                                <div style="font-size:12px; color:#64748b;"><?= (int)$ds['quantity'] ?> ks<?php if (!empty($ds['note'])): ?> • <?= htmlspecialchars($ds['note']) ?><?php endif; ?></div>
+                                            </div>
+                                            <div style="text-align:right;">
+                                                <div style="font-size:14px; font-weight:800; color:#10b981;"><?= number_format(((int)$ds['unit_price'] * (int)$ds['quantity']), 0, ',', ' ') ?> Kč</div>
+                                                <div style="font-size:11px; color:#94a3b8;"><?= date('d. m.', strtotime($ds['sold_at'])) ?></div>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -421,6 +462,10 @@
                     <div class="stat-card-acc-v2" style="background:#fff; border:1px solid #e2e8f0; text-align:center; padding:20px; border-top: 3px solid #10b981;">
                         <div style="color:#64748b; font-size:11px; font-weight:700; text-transform:uppercase; margin-bottom:8px;">Produkty</div>
                         <div style="font-size:22px; font-weight:800; color:#10b981; font-family:'Outfit';"><?= number_format($stats_total_prod, 0, ',', ' ') ?> Kč</div>
+                        <div style="margin-top:8px; font-size:11px; color:#64748b; line-height:1.5;">
+                            Klienti: <?= number_format($stats_total_prod_clients, 0, ',', ' ') ?> Kč<br>
+                            Rychlý prodej: <?= number_format($stats_total_prod_direct, 0, ',', ' ') ?> Kč
+                        </div>
                     </div>
                     <div class="stat-card-acc-v2" style="background:#fff; border:1px solid #e2e8f0; text-align:center; padding:20px; border-top: 3px solid #f59e0b;">
                         <div style="color:#64748b; font-size:11px; font-weight:700; text-transform:uppercase; margin-bottom:8px;">Návštěvy</div>
@@ -562,6 +607,121 @@
         </div>
     </div>
 </div>
+
+    <!-- SAMOSTATNÁ STRÁNKA: RYCHLÝ PRODEJ -->
+    <div id="direct-sales-box" class="karta-container" style="display: <?= $show_sales ? 'flex' : 'none' ?>; background:#f8fafc; border:none; box-shadow: 0 10px 40px rgba(0,0,0,0.08);">
+        <div class="karta-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding:45px 35px; border-bottom:none; display:flex; align-items:center;">
+            <div style="display:flex; align-items:center; gap:20px; flex:1;">
+                <div style="background:linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%); color:#fff; width:55px; height:55px; border-radius:18px; display:flex; align-items:center; justify-content:center; box-shadow: 0 8px 20px rgba(14,165,233,0.28); flex-shrink:0;">
+                    <i data-lucide="shopping-bag" style="width:28px; height:28px;"></i>
+                </div>
+                <div>
+                    <h2 style="margin:0; font-family:'Outfit'; font-size:30px; color:#fff; letter-spacing:-0.5px;">Rychlý prodej</h2>
+                    <p style="margin:0; font-size:14px; color:rgba(255,255,255,0.68);">Samostatný prodej produktů bez zakládání klienta — vše se započítá do tržeb i statistik.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="karta-content" style="padding:35px; background:transparent;">
+            <div class="direct-sales-stats-grid" style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:20px; margin-bottom:28px;">
+                <div class="stat-card-acc-v2">
+                    <div class="icon-box"><i data-lucide="shopping-bag"></i></div>
+                    <span class="label">Dnes bez klienta</span>
+                    <div class="value"><?= number_format($today_direct_sales_sum, 0, ',', ' ') ?> Kč</div>
+                    <span class="sub"><?= $today_direct_sales_count ?>x prodej</span>
+                </div>
+                <div class="stat-card-acc-v2">
+                    <div class="icon-box"><i data-lucide="calendar-range"></i></div>
+                    <span class="label">Tento měsíc</span>
+                    <div class="value"><?= number_format($m_direct_now, 0, ',', ' ') ?> Kč</div>
+                    <span class="sub">Součet rychlého prodeje</span>
+                </div>
+                <div class="stat-card-acc-v2">
+                    <div class="icon-box"><i data-lucide="bar-chart-3"></i></div>
+                    <span class="label">Celkem rychlý prodej</span>
+                    <div class="value"><?= number_format($stats_total_prod_direct, 0, ',', ' ') ?> Kč</div>
+                    <span class="sub">V historii salonu</span>
+                </div>
+                <div class="stat-card-acc-v2 gold-theme">
+                    <div class="icon-box"><i data-lucide="package"></i></div>
+                    <span class="label">Produkty celkem</span>
+                    <div class="value"><?= number_format($stats_total_prod, 0, ',', ' ') ?> Kč</div>
+                    <span class="sub">Klienti + rychlý prodej</span>
+                </div>
+            </div>
+
+            <div class="direct-sales-main-grid" style="display:grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr); gap:24px; align-items:start;">
+                <div class="sekce direct-sales-form-card" style="margin-bottom:0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+                        <span class="sekce-nadpis" style="margin:0;">Nový prodej bez klienta</span>
+                        <span style="font-size:10px; font-weight:800; color:#0f766e; background:#ccfbf1; padding:4px 8px; border-radius:999px;">Víc produktů najednou</span>
+                    </div>
+                    <form action="direct_sale.php" method="POST" id="direct-sale-form" style="display:flex; flex-direction:column; gap:14px;">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                        <div class="direct-sales-products-panel">
+                            <label style="display:block; font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-bottom:8px;">Položky nákupu</label>
+                            <div id="direct-sale-products-wrapper"></div>
+                            <button type="button" onclick="pridatProduktRow('direct-sale-products-wrapper')" style="background:none; border:none; color:var(--primary); font-size:12px; font-weight:800; cursor:pointer; padding:4px 0 0 0; text-transform:uppercase; letter-spacing:0.4px; align-self:flex-start;">
+                                + Přidat další produkt
+                            </button>
+                            <div style="font-size:12px; color:#64748b; margin-top:8px;">Používá stejný našeptávač jako produkty u návštěvy a můžete přidat více položek najednou.</div>
+                        </div>
+                        <div class="direct-sales-meta-grid">
+                            <div>
+                                <label style="display:block; font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">Datum prodeje</label>
+                                <input type="date" name="sold_at" value="<?= date('Y-m-d') ?>" required>
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">Poznámka</label>
+                                <input type="text" name="note" maxlength="255" placeholder="např. walk-in zákazník nebo doporučení z ulice">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-ulozit" style="width:100%; justify-content:center; margin-top:2px;">
+                            <i data-lucide="check" style="width:18px;height:18px;"></i>
+                            Uložit prodej do tržeb
+                        </button>
+                    </form>
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:18px;">
+                    <div class="sekce" style="margin-bottom:0;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px;">
+                            <span class="sekce-nadpis" style="margin:0;">Dnešní rychlé prodeje</span>
+                            <span style="font-size:11px; color:#64748b; font-weight:700;"><?= $today_direct_sales_count ?> záznamů</span>
+                        </div>
+
+                        <?php if(empty($today_direct_sales_list)): ?>
+                            <div style="padding:16px; background:#f8fafc; border:1px dashed #e2e8f0; border-radius:14px; color:#64748b; font-size:13px;">Zatím tu není žádný samostatný prodej bez klienta.</div>
+                        <?php else: ?>
+                            <div style="display:flex; flex-direction:column; gap:10px;">
+                                <?php foreach($today_direct_sales_list as $ds): ?>
+                                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:12px 14px; border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0;">
+                                        <div>
+                                            <div style="font-size:13px; font-weight:800; color:#334155;"><?= htmlspecialchars(trim(($ds['brand'] ?? '') . ' ' . ($ds['name'] ?? ''))) ?></div>
+                                            <div style="font-size:12px; color:#64748b;"><?= (int)$ds['quantity'] ?> ks<?php if (!empty($ds['note'])): ?> • <?= htmlspecialchars($ds['note']) ?><?php endif; ?></div>
+                                        </div>
+                                        <div style="text-align:right;">
+                                            <div style="font-size:14px; font-weight:800; color:#10b981;"><?= number_format(((int)$ds['unit_price'] * (int)$ds['quantity']), 0, ',', ' ') ?> Kč</div>
+                                            <div style="font-size:11px; color:#94a3b8;"><?= date('d. m.', strtotime($ds['sold_at'])) ?></div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="sekce" style="margin-bottom:0;">
+                        <span class="sekce-nadpis">Jak to funguje</span>
+                        <ul style="margin:0; padding-left:18px; color:#475569; font-size:14px; line-height:1.8;">
+                            <li>nemusíte zakládat nového klienta do databáze</li>
+                            <li>prodej se započítá do dnešních tržeb i statistik</li>
+                            <li>částka se objeví také v exportech CSV a PDF</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- NASTAVENÍ A SPRÁVA SALONU -->
     <div id="settings-dashboard-box" class="karta-container" style="display: <?= $show_settings ? 'flex' : 'none' ?>; background:#f8fafc; border:none; box-shadow: 0 10px 40px rgba(0,0,0,0.08);">

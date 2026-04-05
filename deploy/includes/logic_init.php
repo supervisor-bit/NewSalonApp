@@ -27,8 +27,9 @@ $view = isset($_GET['view']) ? $_GET['view'] : null;
 // MUTUALLY EXCLUSIVE VIEWS
 $show_settings = ($view === 'settings');
 $show_accounting = ($view === 'accounting');
+$show_sales = ($view === 'sales');
 $show_stats = ($view === null && $range !== null && $client_id === 0);
-$show_client_karta = ($view === null && !$show_stats && !$show_settings && !$show_accounting);
+$show_client_karta = ($view === null && !$show_stats && !$show_settings && !$show_accounting && !$show_sales);
 
 // Logika pro aktualizaci profilu (přesunuto z settings.php)
 if (!$setup_needed && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_profile') {
@@ -79,9 +80,16 @@ $total_spent = 0;
 // Client Analytics
 $vip_status = false;
 $avg_interval = null;
+$today_direct_sales_sum = 0;
+$today_direct_sales_count = 0;
+$today_direct_sales_list = [];
+$stats_total_prod_clients = 0;
+$stats_total_prod_direct = 0;
+$m_direct_now = 0;
 
 if (!$setup_needed) {
     $clientOrderBy = 'first_name ASC';
+    $has_direct_sales = false;
 
     try {
         $clientCol = $pdo->query("SHOW COLUMNS FROM clients LIKE 'is_active'")->fetch();
@@ -99,8 +107,25 @@ if (!$setup_needed) {
             $pdo->exec("ALTER TABLE clients ADD COLUMN is_favorite TINYINT(1) DEFAULT 0");
         }
 
+        $pdo->exec("CREATE TABLE IF NOT EXISTS direct_sales (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            product_id INT NOT NULL,
+            quantity INT NOT NULL DEFAULT 1,
+            unit_price INT NOT NULL DEFAULT 0,
+            sold_at DATE NOT NULL,
+            note VARCHAR(255) DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        $has_direct_sales = true;
+
         $clientOrderBy = 'COALESCE(c.is_favorite, 0) DESC, first_name ASC';
     } catch (Throwable $e) {
+        try {
+            $has_direct_sales = (bool)$pdo->query("SHOW TABLES LIKE 'direct_sales'")->fetch();
+        } catch (Throwable $inner) {
+            $has_direct_sales = false;
+        }
         // Když se sloupec nepodaří přidat, aplikace poběží dál v původním režimu.
     }
 
@@ -272,9 +297,17 @@ if (!$setup_needed) {
     $shopping_list = $shop_stmt->fetchAll();
     
     // 4. Stahnuti produktu na doma s prioritou podle prodejů
+    $direct_sales_usage_sql = $has_direct_sales
+        ? "COALESCE((SELECT SUM(ds.quantity) FROM direct_sales ds WHERE ds.product_id = p.id), 0)"
+        : "0";
+
     $pr_stmt = $pdo->query("
         SELECT p.id, p.brand, p.name, p.price, p.is_active, 
-        (SELECT COUNT(*) FROM visit_products vp WHERE vp.product_id = p.id) as use_count
+        (
+            COALESCE((SELECT SUM(vp.amount) FROM visit_products vp WHERE vp.product_id = p.id), 0)
+            +
+            $direct_sales_usage_sql
+        ) as use_count
         FROM products p 
         ORDER BY use_count DESC, p.brand, p.name
     ");
@@ -284,18 +317,36 @@ if (!$setup_needed) {
     // 5. Salon-wide Statistics (Dashboard)
     $stats_total_work = 0;
     $stats_total_prod = 0;
+    $stats_total_prod_clients = 0;
+    $stats_total_prod_direct = 0;
     $stats_visit_count = 0;
     
     $date_clause = " WHERE 1=1 ";
-    if ($range === 'today') $date_clause = " WHERE visit_date = CURDATE() ";
-    if ($range === 'this_month') $date_clause = " WHERE MONTH(visit_date) = MONTH(CURDATE()) AND YEAR(visit_date) = YEAR(CURDATE()) ";
-    if ($range === 'this_year') $date_clause = " WHERE YEAR(visit_date) = YEAR(CURDATE()) ";
+    $direct_date_clause = " WHERE 1=1 ";
+    if ($range === 'today') {
+        $date_clause = " WHERE visit_date = CURDATE() ";
+        $direct_date_clause = " WHERE sold_at = CURDATE() ";
+    }
+    if ($range === 'this_month') {
+        $date_clause = " WHERE MONTH(visit_date) = MONTH(CURDATE()) AND YEAR(visit_date) = YEAR(CURDATE()) ";
+        $direct_date_clause = " WHERE MONTH(sold_at) = MONTH(CURDATE()) AND YEAR(sold_at) = YEAR(CURDATE()) ";
+    }
+    if ($range === 'this_year') {
+        $date_clause = " WHERE YEAR(visit_date) = YEAR(CURDATE()) ";
+        $direct_date_clause = " WHERE YEAR(sold_at) = YEAR(CURDATE()) ";
+    }
 
     $s_stmt = $pdo->query("SELECT SUM(price) as sw FROM visits" . $date_clause);
     $stats_total_work = (int)$s_stmt->fetchColumn();
     
     $p_stmt = $pdo->query("SELECT SUM(vp.price_sold * vp.amount) as sp FROM visit_products vp JOIN visits v ON vp.visit_id = v.id" . str_replace('WHERE', 'AND', $date_clause));
-    $stats_total_prod = (int)$p_stmt->fetchColumn();
+    $stats_total_prod_clients = (int)$p_stmt->fetchColumn();
+
+    if ($has_direct_sales) {
+        $dp_stmt = $pdo->query("SELECT SUM(unit_price * quantity) as sp FROM direct_sales" . $direct_date_clause);
+        $stats_total_prod_direct = (int)$dp_stmt->fetchColumn();
+    }
+    $stats_total_prod = $stats_total_prod_clients + $stats_total_prod_direct;
     
     $v_stmt = $pdo->query("SELECT COUNT(*) FROM visits" . $date_clause);
     $stats_visit_count = (int)$v_stmt->fetchColumn();
@@ -317,7 +368,16 @@ if (!$setup_needed) {
     foreach($monthly_stats as $k => $ms) {
         $mp_stmt = $pdo->prepare("SELECT SUM(vp.price_sold * vp.amount) FROM visit_products vp JOIN visits v ON vp.visit_id = v.id WHERE DATE_FORMAT(v.visit_date, '%Y-%m') = ?");
         $mp_stmt->execute([$ms['ym']]);
-        $monthly_stats[$k]['prod_rev'] = (int)$mp_stmt->fetchColumn();
+        $monthly_visit_products = (int)$mp_stmt->fetchColumn();
+        $monthly_direct_products = 0;
+
+        if ($has_direct_sales) {
+            $mdp_stmt = $pdo->prepare("SELECT SUM(unit_price * quantity) FROM direct_sales WHERE DATE_FORMAT(sold_at, '%Y-%m') = ?");
+            $mdp_stmt->execute([$ms['ym']]);
+            $monthly_direct_products = (int)$mdp_stmt->fetchColumn();
+        }
+
+        $monthly_stats[$k]['prod_rev'] = $monthly_visit_products + $monthly_direct_products;
     }
 
     // TOP 5 Clients
@@ -360,10 +420,22 @@ if (!$setup_needed) {
     $stmt_t_s->execute([$today_date]);
     $today_stats = $stmt_t_s->fetch();
 
-    // 2. Dnešní tržba (Produkty)
+    // 2. Dnešní tržba (Produkty při návštěvách)
     $stmt_t_p = $pdo->prepare("SELECT SUM(vp.price_sold * vp.amount) as sum_p FROM visit_products vp JOIN visits v ON vp.visit_id = v.id WHERE v.visit_date = ?");
     $stmt_t_p->execute([$today_date]);
     $today_p_sum = $stmt_t_p->fetchColumn() ?: 0;
+
+    // 2b. Dnešní tržba (Rychlý prodej bez klienta)
+    $today_direct_sales_sum = 0;
+    $today_direct_sales_count = 0;
+    $today_direct_sales_list = [];
+    if ($has_direct_sales) {
+        $stmt_t_dp = $pdo->prepare("SELECT SUM(unit_price * quantity) as sum_p, COUNT(*) as cnt FROM direct_sales WHERE sold_at = ?");
+        $stmt_t_dp->execute([$today_date]);
+        $today_direct_sales = $stmt_t_dp->fetch();
+        $today_direct_sales_sum = (int)($today_direct_sales['sum_p'] ?? 0);
+        $today_direct_sales_count = (int)($today_direct_sales['cnt'] ?? 0);
+    }
 
     // 3. Seznam dnešních návštěv pro denní report
     $stmt_today_list = $pdo->prepare("
@@ -376,6 +448,18 @@ if (!$setup_needed) {
     $stmt_today_list->execute([$today_date]);
     $today_visits_list = $stmt_today_list->fetchAll();
 
+    if ($has_direct_sales) {
+        $stmt_today_direct_list = $pdo->prepare("
+            SELECT ds.*, p.brand, p.name
+            FROM direct_sales ds
+            JOIN products p ON ds.product_id = p.id
+            WHERE ds.sold_at = ?
+            ORDER BY ds.id DESC
+        ");
+        $stmt_today_direct_list->execute([$today_date]);
+        $today_direct_sales_list = $stmt_today_direct_list->fetchAll();
+    }
+
     // 4. Měsíční souhrn aktuální
     $stmt_m_s = $pdo->prepare("SELECT SUM(price) as sum_s, COUNT(id) as count_v FROM visits WHERE visit_date LIKE ? AND price IS NOT NULL");
     $stmt_m_s->execute([$current_month . '%']);
@@ -383,7 +467,14 @@ if (!$setup_needed) {
 
     $stmt_m_p = $pdo->prepare("SELECT SUM(vp.price_sold * vp.amount) as sum_p FROM visit_products vp JOIN visits v ON vp.visit_id = v.id WHERE v.visit_date LIKE ?");
     $stmt_m_p->execute([$current_month . '%']);
-    $m_prod_now = $stmt_m_p->fetchColumn() ?: 0;
+    $m_prod_now = (int)($stmt_m_p->fetchColumn() ?: 0);
+
+    if ($has_direct_sales) {
+        $stmt_m_dp = $pdo->prepare("SELECT SUM(unit_price * quantity) as sum_p FROM direct_sales WHERE sold_at LIKE ?");
+        $stmt_m_dp->execute([$current_month . '%']);
+        $m_direct_now = (int)($stmt_m_dp->fetchColumn() ?: 0);
+        $m_prod_now += $m_direct_now;
+    }
 
     // 5. Robustní rozpis po dnech přes PHP (vždy odpovídá záhlaví)
     $stmt_m_all = $pdo->prepare("SELECT id, visit_date, price FROM visits WHERE visit_date LIKE ? ORDER BY visit_date DESC");
@@ -403,6 +494,19 @@ if (!$setup_needed) {
         $stmt_p_v->execute([$mv['id']]);
         $month_daily_breakdown[$d]['day_sum_p'] += (int)$stmt_p_v->fetchColumn();
     }
+
+    if ($has_direct_sales) {
+        $stmt_m_direct_list = $pdo->prepare("SELECT sold_at, SUM(unit_price * quantity) as total_direct FROM direct_sales WHERE sold_at LIKE ? GROUP BY sold_at ORDER BY sold_at DESC");
+        $stmt_m_direct_list->execute([$current_month . '%']);
+        foreach ($stmt_m_direct_list->fetchAll() as $direct_row) {
+            $d = $direct_row['sold_at'];
+            if(!isset($month_daily_breakdown[$d])) {
+                $month_daily_breakdown[$d] = ['visit_date' => $d, 'day_sum_s' => 0, 'day_sum_p' => 0];
+            }
+            $month_daily_breakdown[$d]['day_sum_p'] += (int)$direct_row['total_direct'];
+        }
+    }
+    krsort($month_daily_breakdown);
     // Re-index pro loop
     $month_daily_breakdown = array_values($month_daily_breakdown);
 
@@ -425,7 +529,16 @@ if (!$setup_needed) {
     foreach($annual_stats as $k => $row) {
         $ap_stmt = $pdo->prepare("SELECT SUM(vp.price_sold * vp.amount) FROM visit_products vp JOIN visits v ON vp.visit_id = v.id WHERE YEAR(v.visit_date) = ?");
         $ap_stmt->execute([$row['rok']]);
-        $annual_stats[$k]['produkty'] = (int)$ap_stmt->fetchColumn();
+        $annual_visit_products = (int)$ap_stmt->fetchColumn();
+        $annual_direct_products = 0;
+
+        if ($has_direct_sales) {
+            $adp_stmt = $pdo->prepare("SELECT SUM(unit_price * quantity) FROM direct_sales WHERE YEAR(sold_at) = ?");
+            $adp_stmt->execute([$row['rok']]);
+            $annual_direct_products = (int)$adp_stmt->fetchColumn();
+        }
+
+        $annual_stats[$k]['produkty'] = $annual_visit_products + $annual_direct_products;
         $annual_stats[$k]['celkem'] = (int)$row['sluzby'] + $annual_stats[$k]['produkty'];
     }
 
