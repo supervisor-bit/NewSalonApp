@@ -202,9 +202,9 @@
             </div>
         <?php  endforeach; ?>
     </div>
-    <!-- POČÍTADLO KLIENTEK -->
+    <!-- POČÍTADLO KLIENTŮ -->
     <div style="padding:15px; border-top:1px solid #e2e8f0; color:#94a3b8; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; background:#fff; border-radius: 0 0 0 20px;">
-        Zobrazeno: <span id="clients-visible-count"><?= $client_group_counts['all'] ?></span> / <?= count($clients) ?> klientek
+        Zobrazeno: <span id="clients-visible-count"><?= $client_group_counts['all'] ?></span> / <?= count($clients) ?> klientů
     </div>
 </div>
 
@@ -276,7 +276,7 @@
                 </div>
 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                    <h3 class="sekce-nadpis" style="margin:0;">Seznam dnešních klientek</h3>
+                    <h3 class="sekce-nadpis" style="margin:0;">Seznam dnešních klientů</h3>
                     <span style="font-size:12px; color:#94a3b8; font-weight:700; text-transform:uppercase;"><?= date('d. m. Y') ?></span>
                 </div>
                 
@@ -512,7 +512,7 @@
 
                     <!-- BOČNÍ PANEL STATISTIK -->
                     <div>
-                        <h3 class="sekce-nadpis">TOP 5 Klientek</h3>
+                        <h3 class="sekce-nadpis">TOP 5 klientů</h3>
                         <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:30px;">
                             <?php foreach($top_clients as $idx => $tc): ?>
                             <div style="background:#fff; padding:15px; border-radius:15px; border:1px solid #e2e8f0; display:flex; align-items:center; gap:12px;">
