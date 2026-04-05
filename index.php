@@ -507,7 +507,7 @@
                 </div>
                 <div>
                     <h2 style="margin:0; font-family:'Outfit'; font-size:30px; color:#fff; letter-spacing:-0.5px;">Správa salonu</h2>
-                    <p style="margin:0; font-size:14px; color:rgba(255,255,255,0.6);">Konfigurace profilu, barev a produktů</p>
+                    <p style="margin:0; font-size:14px; color:rgba(255,255,255,0.6);">Konfigurace profilu, barev, produktů a informací o aplikaci</p>
                 </div>
             </div>
         </div>
@@ -518,6 +518,7 @@
                 <button type="button" id="set-tab-btn-profile" class="acc-tab-btn-v2 active" onclick="prepniSettings('profile')">Můj profil</button>
                 <button type="button" id="set-tab-btn-materials" class="acc-tab-btn-v2" onclick="prepniSettings('materials')">Číselník barev</button>
                 <button type="button" id="set-tab-btn-products" class="acc-tab-btn-v2" onclick="prepniSettings('products')">Produkty na doma</button>
+                <button type="button" id="set-tab-btn-about" class="acc-tab-btn-v2" onclick="prepniSettings('about')">O aplikaci</button>
             </div>
         </div>
 
@@ -727,12 +728,63 @@
                                     </div>
                                 </div>
                             <?php endforeach; endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: O APLIKACI -->
+            <div id="set-view-about" class="acc-view" style="display:none;">
+                <div style="display:grid; grid-template-columns: 1.15fr 0.85fr; gap:24px; align-items:start;">
+                    <div class="sekce" style="margin-bottom:0;">
+                        <span class="sekce-nadpis">O aplikaci KARTA</span>
+                        <h3 style="margin:0 0 10px 0; font-family:'Outfit'; font-size:24px; color:#0f172a;">KARTA – salonní pomocník pro každodenní provoz</h3>
+                        <p style="color:#475569; font-size:14px; line-height:1.7; margin-bottom:18px;">
+                            Aplikace slouží pro vedení klientských karet, historii návštěv, receptur, produktů na doma, nákupního seznamu a rychlé práce z mobilu přímo u míchacího pultu.
+                        </p>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                            <div style="padding:14px 16px; border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0;">
+                                <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">Desktop</div>
+                                <div style="font-size:14px; font-weight:700; color:#334155;">Klientky, historie, statistiky, nákup</div>
+                            </div>
+                            <div style="padding:14px 16px; border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0;">
+                                <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">Mobil</div>
+                                <div style="font-size:14px; font-weight:700; color:#334155;">Rychlé míchání a zápis návštěv</div>
+                            </div>
+                            <div style="padding:14px 16px; border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0;">
+                                <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">Sdílená data</div>
+                                <div style="font-size:14px; font-weight:700; color:#334155;">Desktop i mobil pracují nad stejnou databází</div>
+                            </div>
+                            <div style="padding:14px 16px; border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0;">
+                                <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">Bezpečí</div>
+                                <div style="font-size:14px; font-weight:700; color:#334155;">Přihlášení, zálohy databáze a oddělený deploy</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:18px;">
+                        <div class="sekce" style="margin-bottom:0;">
+                            <span class="sekce-nadpis">Co aplikace umí</span>
+                            <ul style="margin:0; padding-left:18px; color:#475569; line-height:1.8; font-size:14px;">
+                                <li>evidence klientek a jejich historie</li>
+                                <li>ukládání receptur v miskách včetně poměru</li>
+                                <li>produkty na doma a vyúčtování návštěv</li>
+                                <li>rychlé opakování minulé receptury</li>
+                                <li>mobilní práce přes PWA rozhraní</li>
+                            </ul>
+                        </div>
+
+                        <div class="sekce" style="margin-bottom:0;">
+                            <span class="sekce-nadpis">Tip pro provoz</span>
+                            <p style="margin:0; color:#475569; font-size:14px; line-height:1.7;">
+                                Pro klidný provoz doporučujeme pravidelně stahovat zálohu databáze a po větších úpravách držet v synchronizaci i složku <code>deploy/</code>.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-</div>
 
     <!-- KARTA KLIENTKY -->
     <div id="client-karta-box" class="karta-container" style="display: <?= $show_client_karta ? 'flex' : 'none' ?>;">
