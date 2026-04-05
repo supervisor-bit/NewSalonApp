@@ -941,13 +941,23 @@
     });
 
     // NAŠEPTÁVAČ
+    function normalizeSearchText(value) {
+        return String(value || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+    }
+
     function hledejKlientku() {
-        let filter = document.getElementById('hledani').value.toLowerCase().trim();
+        let filter = document.getElementById('hledani').value.trim();
+        let normalizedFilter = normalizeSearchText(filter);
+        let compactFilter = normalizedFilter.replace(/\s+/g, '');
         let rows = document.querySelectorAll('.client-row');
         rows.forEach(function(row) {
-            let name = row.querySelector('h3').innerText.toLowerCase();
-            let tags = (row.getAttribute('data-tags') || '').toLowerCase();
-            row.style.display = (name.includes(filter) || tags.includes(filter)) ? "" : "none";
+            let name = normalizeSearchText(row.querySelector('h3').innerText);
+            let phone = normalizeSearchText(row.getAttribute('data-phone') || '');
+            let normalizedPhone = phone.replace(/\s+/g, '');
+            row.style.display = (!normalizedFilter || name.includes(normalizedFilter) || normalizedPhone.includes(compactFilter)) ? "" : "none";
         });
     }
 

@@ -95,7 +95,7 @@
         <h2>Seznam klientek</h2>
         <div class="search-container">
             <i data-lucide="search"></i>
-            <input type="text" id="hledani" class="search-bar" placeholder="Hledat klientku, barvu nebo datum..." oninput="hledejKlientku()">
+            <input type="text" id="hledani" class="search-bar" placeholder="Hledat klientku nebo telefon..." oninput="hledejKlientku()">
         </div>
     </div>
     <div class="client-list">
@@ -103,7 +103,7 @@
             <?php  
                 $initials = mb_strtoupper(mb_substr($c['first_name'], 0, 1) . mb_substr($c['last_name'], 0, 1)); 
             ?>
-            <div onclick="window.location.href='index.php?client_id=<?=$c['id']?>'" class="client-row <?= ($c['id'] == $client_id) ? 'active' : '' ?>" data-tags="<?= htmlspecialchars(($c['materials_used'] ?? '') . ' ' . ($c['visit_dates'] ?? '')) ?>">
+            <div onclick="window.location.href='index.php?client_id=<?=$c['id']?>'" class="client-row <?= ($c['id'] == $client_id) ? 'active' : '' ?>" data-phone="<?= htmlspecialchars((string)($c['phone'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
                 <div class="avatar"><?= $initials ?></div>
                 <div class="client-info">
                     <h3><?= htmlspecialchars($c['first_name'] . ' ' . $c['last_name']) ?></h3>
