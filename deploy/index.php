@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aura | Salonní přehled</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=<?= filemtime(__DIR__ . '/style.css') ?>">
     
     <!-- PWA Support -->
     <link rel="manifest" href="manifest.json">
@@ -23,8 +23,11 @@
         // PWA Registration
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('✅ Service Worker připraven'))
+                navigator.serviceWorker.register('sw.js?v=<?= filemtime(__DIR__ . '/sw.js') ?>')
+                    .then(reg => {
+                        reg.update();
+                        console.log('✅ Service Worker připraven');
+                    })
                     .catch(e => console.error('❌ Chyba Service Workera:', e));
             });
         }
@@ -572,6 +575,21 @@
                             <?php endforeach; ?>
                         </div>
 
+                        <h3 class="sekce-nadpis">Top produkty na doma</h3>
+                        <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:30px;">
+                            <?php if(empty($top_home_products)): ?>
+                                <div style="background:#fff; padding:14px 15px; border-radius:12px; border:1px solid #e2e8f0; color:#94a3b8; font-size:12px;">Zatím tu nejsou žádná prodejní data.</div>
+                            <?php else: foreach($top_home_products as $idx => $tp): ?>
+                            <div style="background:#fff; padding:12px 15px; border-radius:12px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                                <div style="min-width:0;">
+                                    <div style="font-weight:700; font-size:13px; color:var(--text);"><?= htmlspecialchars(trim(($tp['brand'] ?? '') . ' ' . ($tp['name'] ?? ''))) ?></div>
+                                    <div style="font-size:11px; color:#64748b;"><?= (int)$tp['total_qty'] ?> ks • <?= number_format((int)$tp['total_rev'], 0, ',', ' ') ?> Kč</div>
+                                </div>
+                                <div style="font-size:11px; font-weight:800; color:var(--primary); background:#fff8e6; border-radius:999px; padding:4px 8px;">#<?= $idx + 1 ?></div>
+                            </div>
+                            <?php endforeach; endif; ?>
+                        </div>
+
                         <h3 class="sekce-nadpis">Spotřeba materiálů</h3>
                         <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:30px;">
                             <?php foreach($top_materials as $tm): ?>
@@ -660,12 +678,33 @@
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
                         <div class="direct-sales-products-panel">
                             <label style="display:block; font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-bottom:8px;">Položky nákupu</label>
+                            <div class="direct-sales-row-head">
+                                <span>Produkt</span>
+                                <span>Ks</span>
+                                <span>Cena</span>
+                                <span></span>
+                            </div>
                             <div id="direct-sale-products-wrapper"></div>
                             <button type="button" onclick="pridatProduktRow('direct-sale-products-wrapper')" style="background:none; border:none; color:var(--primary); font-size:12px; font-weight:800; cursor:pointer; padding:4px 0 0 0; text-transform:uppercase; letter-spacing:0.4px; align-self:flex-start;">
                                 + Přidat další produkt
                             </button>
                             <div style="font-size:12px; color:#64748b; margin-top:8px;">Používá stejný našeptávač jako produkty u návštěvy a můžete přidat více položek najednou.</div>
                         </div>
+                        <div id="direct-sale-live-summary" style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px;">
+                            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:12px;">
+                                <div style="font-size:10px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:4px;">Položky</div>
+                                <div id="direct-sale-line-count" style="font-size:20px; font-weight:800; color:#0f172a;">0</div>
+                            </div>
+                            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:12px;">
+                                <div style="font-size:10px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:4px;">Ks celkem</div>
+                                <div id="direct-sale-qty-total" style="font-size:20px; font-weight:800; color:#0f172a;">0</div>
+                            </div>
+                            <div style="background:#ecfdf5; border:1px solid #bbf7d0; border-radius:14px; padding:12px;">
+                                <div style="font-size:10px; font-weight:800; color:#059669; text-transform:uppercase; margin-bottom:4px;">Mezisoučet</div>
+                                <div id="direct-sale-subtotal" style="font-size:20px; font-weight:800; color:#059669;">0 Kč</div>
+                            </div>
+                        </div>
+                        <div id="direct-sale-summary-warning" style="display:none; background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; border-radius:12px; padding:10px 12px; font-size:12px; line-height:1.5;"></div>
                         <div class="direct-sales-meta-grid">
                             <div>
                                 <label style="display:block; font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">Datum prodeje</label>
@@ -681,6 +720,50 @@
                             Uložit prodej do tržeb
                         </button>
                     </form>
+                    <script>
+                        window.refreshDirectSaleBoxes = function() {
+                            const wrapper = document.getElementById('direct-sale-products-wrapper');
+                            const lineEl = document.getElementById('direct-sale-line-count');
+                            const qtyEl = document.getElementById('direct-sale-qty-total');
+                            const subtotalEl = document.getElementById('direct-sale-subtotal');
+                            if (!wrapper || !lineEl || !qtyEl || !subtotalEl) return;
+
+                            let lines = 0;
+                            let qty = 0;
+                            let subtotal = 0;
+
+                            wrapper.querySelectorAll('.product-row').forEach((row) => {
+                                const searchVal = (row.querySelector('.product-search')?.value || '').trim();
+                                const qtyVal = Math.max(1, parseFloat(String(row.querySelector('.product-amount')?.value || '1').replace(',', '.')) || 1);
+                                const priceVal = Math.max(0, parseFloat(String(row.querySelector('.product-price')?.value || '0').replace(',', '.')) || 0);
+                                const hasAnyValue = searchVal !== '' || priceVal > 0 || qtyVal > 1;
+
+                                if (!hasAnyValue) return;
+                                lines += 1;
+                                qty += qtyVal;
+                                subtotal += qtyVal * priceVal;
+                            });
+
+                            lineEl.textContent = String(lines);
+                            qtyEl.textContent = String(qty);
+                            subtotalEl.textContent = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 2 }).format(subtotal) + ' Kč';
+                        };
+
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const form = document.getElementById('direct-sale-form');
+                            if (!form || form.dataset.inlineSummaryBound === '1') return;
+
+                            ['input', 'change', 'click'].forEach((eventName) => {
+                                form.addEventListener(eventName, () => setTimeout(() => window.refreshDirectSaleBoxes(), 0));
+                            });
+
+                            [0, 120, 400, 1000].forEach((delay) => {
+                                setTimeout(() => window.refreshDirectSaleBoxes(), delay);
+                            });
+
+                            form.dataset.inlineSummaryBound = '1';
+                        });
+                    </script>
                 </div>
 
                 <div style="display:flex; flex-direction:column; gap:18px;">
@@ -700,9 +783,14 @@
                                             <div style="font-size:13px; font-weight:800; color:#334155;"><?= htmlspecialchars(trim(($ds['brand'] ?? '') . ' ' . ($ds['name'] ?? ''))) ?></div>
                                             <div style="font-size:12px; color:#64748b;"><?= (int)$ds['quantity'] ?> ks<?php if (!empty($ds['note'])): ?> • <?= htmlspecialchars($ds['note']) ?><?php endif; ?></div>
                                         </div>
-                                        <div style="text-align:right;">
-                                            <div style="font-size:14px; font-weight:800; color:#10b981;"><?= number_format(((int)$ds['unit_price'] * (int)$ds['quantity']), 0, ',', ' ') ?> Kč</div>
-                                            <div style="font-size:11px; color:#94a3b8;"><?= date('d. m.', strtotime($ds['sold_at'])) ?></div>
+                                        <div style="display:flex; align-items:flex-start; gap:10px;">
+                                            <div style="text-align:right;">
+                                                <div style="font-size:14px; font-weight:800; color:#10b981;"><?= number_format(((int)$ds['unit_price'] * (int)$ds['quantity']), 0, ',', ' ') ?> Kč</div>
+                                                <div style="font-size:11px; color:#94a3b8;"><?= date('d. m.', strtotime($ds['sold_at'])) ?></div>
+                                            </div>
+                                            <button type="button" onclick="ukazSmazatModal('delete_direct_sale.php?id=<?= (int)$ds['id'] ?>&redirect=sales')" title="Smazat prodej" style="border:none; background:#fff1f2; color:#e11d48; width:30px; height:30px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                                <i data-lucide="trash-2" style="width:14px; height:14px;"></i>
+                                            </button>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>

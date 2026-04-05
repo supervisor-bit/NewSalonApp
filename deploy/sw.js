@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aura-static-v3';
+const CACHE_NAME = 'aura-static-v4';
 const STATIC_ASSETS = [
     './style.css',
     './m-style.css',
@@ -36,17 +36,11 @@ self.addEventListener('fetch', (event) => {
 
     if (isStaticAsset) {
         event.respondWith(
-            caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
-                if (cachedResponse) {
-                    return cachedResponse;
-                }
-
-                return fetch(event.request).then((networkResponse) => {
-                    const cloned = networkResponse.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
-                    return networkResponse;
-                });
-            })
+            fetch(event.request).then((networkResponse) => {
+                const cloned = networkResponse.clone();
+                caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
+                return networkResponse;
+            }).catch(() => caches.match(event.request, { ignoreSearch: true }))
         );
         return;
     }

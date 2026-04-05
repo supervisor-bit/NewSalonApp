@@ -86,6 +86,7 @@ $today_direct_sales_list = [];
 $stats_total_prod_clients = 0;
 $stats_total_prod_direct = 0;
 $m_direct_now = 0;
+$top_home_products = [];
 
 if (!$setup_needed) {
     $clientOrderBy = 'first_name ASC';
@@ -335,6 +336,31 @@ if (!$setup_needed) {
         $date_clause = " WHERE YEAR(visit_date) = YEAR(CURDATE()) ";
         $direct_date_clause = " WHERE YEAR(sold_at) = YEAR(CURDATE()) ";
     }
+
+    // TOP produkty na doma (návštěvy + rychlý prodej)
+    $top_home_products_stmt = $pdo->query(" 
+        SELECT p.id, p.brand, p.name,
+            (
+                COALESCE((SELECT SUM(vp.amount) FROM visit_products vp JOIN visits v ON vp.visit_id = v.id WHERE vp.product_id = p.id" . str_replace('WHERE', ' AND ', $date_clause) . "), 0)
+                +
+                " . ($has_direct_sales
+                    ? "COALESCE((SELECT SUM(ds.quantity) FROM direct_sales ds WHERE ds.product_id = p.id" . str_replace('WHERE', ' AND ', $direct_date_clause) . "), 0)"
+                    : "0") . "
+            ) AS total_qty,
+            (
+                COALESCE((SELECT SUM(vp.price_sold * vp.amount) FROM visit_products vp JOIN visits v ON vp.visit_id = v.id WHERE vp.product_id = p.id" . str_replace('WHERE', ' AND ', $date_clause) . "), 0)
+                +
+                " . ($has_direct_sales
+                    ? "COALESCE((SELECT SUM(ds.unit_price * ds.quantity) FROM direct_sales ds WHERE ds.product_id = p.id" . str_replace('WHERE', ' AND ', $direct_date_clause) . "), 0)"
+                    : "0") . "
+            ) AS total_rev
+        FROM products p
+        WHERE p.is_active = 1
+        HAVING total_qty > 0
+        ORDER BY total_rev DESC, total_qty DESC, p.brand ASC, p.name ASC
+        LIMIT 5
+    ");
+    $top_home_products = $top_home_products_stmt->fetchAll();
 
     $s_stmt = $pdo->query("SELECT SUM(price) as sw FROM visits" . $date_clause);
     $stats_total_work = (int)$s_stmt->fetchColumn();

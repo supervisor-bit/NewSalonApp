@@ -39,17 +39,17 @@
     <div class="product-row" style="display:flex; gap:10px; margin-bottom:10px; align-items:center;">
         <div style="position:relative; flex:2;">
             <input type="hidden" class="product-hidden" name="product_ids[]">
-            <input type="text" class="product-search" placeholder="Hledat produkt..." autocomplete="off" style="width:100%;">
+            <input type="text" class="product-search" placeholder="Hledat produkt..." autocomplete="off" style="width:100%;" oninput="if (typeof window.refreshDirectSaleBoxes === 'function') window.refreshDirectSaleBoxes(); else if (typeof window.scheduleDirectSaleSummaryRefresh === 'function') window.scheduleDirectSaleSummaryRefresh(); else if (typeof window.updateDirectSaleSummary === 'function') window.updateDirectSaleSummary();" onchange="if (typeof window.refreshDirectSaleBoxes === 'function') window.refreshDirectSaleBoxes(); else if (typeof window.scheduleDirectSaleSummaryRefresh === 'function') window.scheduleDirectSaleSummaryRefresh(); else if (typeof window.updateDirectSaleSummary === 'function') window.updateDirectSaleSummary();">
             <div class="ac-list"></div>
         </div>
         <div style="position:relative; flex:1;">
-            <input type="number" class="product-amount" name="product_amounts[]" placeholder="Ks" style="width:100%; text-align:center; font-weight:700;" value="1">
+            <input type="number" class="product-amount" name="product_amounts[]" placeholder="Ks" style="width:100%; text-align:center; font-weight:700;" value="1" oninput="if (typeof window.refreshDirectSaleBoxes === 'function') window.refreshDirectSaleBoxes(); else if (typeof window.scheduleDirectSaleSummaryRefresh === 'function') window.scheduleDirectSaleSummaryRefresh(); else if (typeof window.updateDirectSaleSummary === 'function') window.updateDirectSaleSummary();" onchange="if (typeof window.refreshDirectSaleBoxes === 'function') window.refreshDirectSaleBoxes(); else if (typeof window.scheduleDirectSaleSummaryRefresh === 'function') window.scheduleDirectSaleSummaryRefresh(); else if (typeof window.updateDirectSaleSummary === 'function') window.updateDirectSaleSummary();">
         </div>
         <div style="position:relative; flex:1;">
-            <input type="number" class="product-price" name="product_prices[]" placeholder="Cena" style="width:100%; padding-right:25px; text-align:right;">
+            <input type="number" class="product-price" name="product_prices[]" placeholder="Cena" style="width:100%; padding-right:25px; text-align:right;" oninput="if (typeof window.refreshDirectSaleBoxes === 'function') window.refreshDirectSaleBoxes(); else if (typeof window.scheduleDirectSaleSummaryRefresh === 'function') window.scheduleDirectSaleSummaryRefresh(); else if (typeof window.updateDirectSaleSummary === 'function') window.updateDirectSaleSummary();" onchange="if (typeof window.refreshDirectSaleBoxes === 'function') window.refreshDirectSaleBoxes(); else if (typeof window.scheduleDirectSaleSummaryRefresh === 'function') window.scheduleDirectSaleSummaryRefresh(); else if (typeof window.updateDirectSaleSummary === 'function') window.updateDirectSaleSummary();">
             <span style="position:absolute; right:8px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:11px;">Kč</span>
         </div>
-        <button type="button" class="btn-remove" onclick="this.parentElement.remove()" style="width:34px; height:34px; padding:0; flex-shrink:0;">×</button>
+        <button type="button" class="btn-remove" onclick="const row=this.closest('.product-row'); const wrapper=row ? row.parentElement : null; if (row) row.remove(); if (wrapper && !wrapper.querySelector('.product-row') && typeof window.pridatProduktRow === 'function') window.pridatProduktRow('direct-sale-products-wrapper'); if (typeof window.refreshDirectSaleBoxes === 'function') window.refreshDirectSaleBoxes(); else if (typeof window.scheduleDirectSaleSummaryRefresh === 'function') window.scheduleDirectSaleSummaryRefresh(); else if (typeof window.updateDirectSaleSummary === 'function') window.updateDirectSaleSummary();" style="width:34px; height:34px; padding:0; flex-shrink:0;">×</button>
     </div>
 </template>
 

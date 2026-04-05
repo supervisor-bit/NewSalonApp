@@ -799,17 +799,35 @@
 
         function applyProductSelection(product, moveFocus = true) {
             const meta = getProductMeta(product);
+            const normalizedPrice = typeof parseDirectSaleNumber === 'function'
+                ? parseDirectSaleNumber(product.price)
+                : (parseFloat(product.price) || 0);
+
             hiddenEl.value = product.id;
             searchEl.value = meta.inputValue;
+
             if (!priceEl.value || priceEl.dataset.autofill !== 'manual') {
-                priceEl.value = product.price;
-                priceEl.dataset.autofill = 'auto';
+                priceEl.value = normalizedPrice > 0 ? String(normalizedPrice) : '';
+                priceEl.dataset.autofill = normalizedPrice > 0 ? 'auto' : 'needs-price';
             }
+
             searchEl.setCustomValidity('');
             listEl.style.display = 'none';
-            if(amountEl && moveFocus) {
-                amountEl.focus();
-                amountEl.select();
+
+            if (typeof scheduleDirectSaleSummaryRefresh === 'function') {
+                scheduleDirectSaleSummaryRefresh();
+            } else if (typeof updateDirectSaleSummary === 'function') {
+                updateDirectSaleSummary();
+            }
+
+            if (moveFocus) {
+                if (priceEl && normalizedPrice <= 0) {
+                    priceEl.focus();
+                    priceEl.select();
+                } else if (amountEl) {
+                    amountEl.focus();
+                    amountEl.select();
+                }
             }
         }
 
@@ -867,11 +885,13 @@
             hiddenEl.value = '';
             searchEl.setCustomValidity('');
             updateList(this.value);
+            if (typeof updateDirectSaleSummary === 'function') updateDirectSaleSummary();
         });
         searchEl.addEventListener('focus', function() { updateList(this.value); this.select(); });
         searchEl.addEventListener('change', function() {
             const match = findProductMatch(this.value);
             if (match) applyProductSelection(match, false);
+            if (typeof updateDirectSaleSummary === 'function') updateDirectSaleSummary();
         });
         searchEl.addEventListener('blur', function() {
             const match = findProductMatch(this.value);
@@ -880,11 +900,13 @@
             } else if (this.value.trim()) {
                 searchEl.setCustomValidity('Vyberte produkt z nabídky.');
             }
+            if (typeof updateDirectSaleSummary === 'function') updateDirectSaleSummary();
             setTimeout(() => { listEl.style.display = 'none'; }, 120);
         });
 
         priceEl.addEventListener('input', function() {
             this.dataset.autofill = this.value ? 'manual' : 'auto';
+            if (typeof updateDirectSaleSummary === 'function') updateDirectSaleSummary();
         });
 
         searchEl.addEventListener('keydown', function(e) {
@@ -1143,12 +1165,137 @@
         if(newVisitBox) newVisitBox.scrollIntoView({ behavior: 'smooth' });
     }
 
+    function parseDirectSaleNumber(rawValue) {
+        if (rawValue === null || rawValue === undefined) return 0;
+
+        const normalized = String(rawValue)
+            .replace(/\s+/g, '')
+            .replace(/kč/gi, '')
+            .replace(',', '.')
+            .replace(/[^0-9.-]/g, '');
+
+        const parsed = parseFloat(normalized);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function scheduleDirectSaleSummaryRefresh() {
+        updateDirectSaleSummary();
+
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => updateDirectSaleSummary());
+        }
+
+        [80, 260, 800, 1600].forEach(delay => {
+            setTimeout(() => updateDirectSaleSummary(), delay);
+        });
+    }
+
+    function updateDirectSaleSummary() {
+        const wrapper = document.getElementById('direct-sale-products-wrapper');
+        const subtotalEl = document.getElementById('direct-sale-subtotal');
+        const qtyEl = document.getElementById('direct-sale-qty-total');
+        const lineEl = document.getElementById('direct-sale-line-count');
+        const warningEl = document.getElementById('direct-sale-summary-warning');
+
+        if (!wrapper || !subtotalEl || !qtyEl || !lineEl) return;
+
+        const rows = wrapper.querySelectorAll('.product-row');
+        let activeLines = 0;
+        let totalQty = 0;
+        let subtotal = 0;
+        let missingSelection = 0;
+        let zeroPrice = 0;
+
+        rows.forEach(row => {
+            const hidden = row.querySelector('.product-hidden');
+            const search = row.querySelector('.product-search');
+            const qtyInput = row.querySelector('.product-amount');
+            const priceInput = row.querySelector('.product-price');
+            const qtyRaw = String(qtyInput?.value ?? '').trim();
+            const qty = Math.max(1, Math.round(parseDirectSaleNumber(qtyRaw || '1') || 1));
+            const price = Math.max(0, parseDirectSaleNumber(priceInput?.value || '0'));
+            const hasAnyValue = Boolean((search?.value || '').trim()) || Boolean(hidden?.value) || price > 0 || (qtyRaw !== '' && qtyRaw !== '1');
+
+            if (!hasAnyValue) return;
+
+            activeLines++;
+            totalQty += qty;
+            subtotal += qty * price;
+
+            if (!hidden?.value) missingSelection++;
+            if (price <= 0) zeroPrice++;
+        });
+
+        lineEl.textContent = String(activeLines);
+        qtyEl.textContent = String(totalQty);
+        subtotalEl.textContent = `${new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 2 }).format(subtotal)} Kč`;
+
+        if (warningEl) {
+            const warnings = [];
+            if (missingSelection > 0) warnings.push('Některý řádek ještě nemá vybraný produkt z našeptávače.');
+            if (zeroPrice > 0 && activeLines > 0) warnings.push('Vyplňte cenu produktu – až pak se dopočítá mezisoučet.');
+            warningEl.style.display = warnings.length ? 'block' : 'none';
+            warningEl.textContent = warnings.join(' ');
+        }
+    }
+
     function initDirectSaleAutocomplete() {
         const wrapper = document.getElementById('direct-sale-products-wrapper');
         if (!wrapper) return;
-        if (wrapper.children.length === 0) {
-            pridatProduktRow('direct-sale-products-wrapper');
+
+        if (wrapper.dataset.summaryBound !== '1') {
+            ['input', 'change', 'keyup'].forEach(eventName => {
+                wrapper.addEventListener(eventName, function(e) {
+                    if (e.target && e.target.closest('.product-row')) {
+                        scheduleDirectSaleSummaryRefresh();
+                    }
+                });
+            });
+
+            wrapper.addEventListener('click', function(e) {
+                const removeBtn = e.target.closest('.btn-remove');
+                if (removeBtn && removeBtn.closest('.product-row')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    removeProductRow(removeBtn);
+                }
+            });
+
+            if (!wrapper._summaryObserver && typeof MutationObserver !== 'undefined') {
+                const observer = new MutationObserver(() => scheduleDirectSaleSummaryRefresh());
+                observer.observe(wrapper, { childList: true, subtree: true });
+                wrapper._summaryObserver = observer;
+            }
+
+            if (!wrapper._summaryInterval && typeof window !== 'undefined') {
+                wrapper._summaryInterval = window.setInterval(() => {
+                    if (document.body.contains(wrapper)) updateDirectSaleSummary();
+                }, 1000);
+            }
+
+            window.addEventListener('pageshow', scheduleDirectSaleSummaryRefresh);
+            window.addEventListener('load', scheduleDirectSaleSummaryRefresh);
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden) scheduleDirectSaleSummaryRefresh();
+            });
+
+            wrapper.dataset.summaryBound = '1';
         }
+
+        const rows = wrapper.querySelectorAll('.product-row');
+        rows.forEach(row => setupProductRow(row, 'direct-sale-products-wrapper'));
+
+        if (rows.length === 0) {
+            setTimeout(() => {
+                pridatProduktRow('direct-sale-products-wrapper');
+                scheduleDirectSaleSummaryRefresh();
+            }, 0);
+            return;
+        }
+
+        [0, 120, 400, 900, 1800].forEach(delay => {
+            setTimeout(() => scheduleDirectSaleSummaryRefresh(), delay);
+        });
     }
 
     function scrollDirectSaleRowIntoView(rowEl) {
@@ -1163,57 +1310,113 @@
         rowEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    function pridatProduktRow(wrapperId, productId = '', price = '', amount = 1) {
-        const wrapper = document.getElementById(wrapperId);
-        const tpl = document.getElementById('product-row-template').content.cloneNode(true);
-        
-        const hiddenEl = tpl.querySelector('.product-hidden');
-        const searchEl = tpl.querySelector('.product-search');
-        const priceEl = tpl.querySelector('.product-price');
-        const amountEl = tpl.querySelector('.product-amount');
-        const listEl = tpl.querySelector('.ac-list');
-        
+    function removeProductRow(btn) {
+        const row = btn?.closest('.product-row');
+        const wrapper = row?.parentElement;
+        if (!row || !wrapper) return;
+
+        const wasOnlyRow = wrapper.id === 'direct-sale-products-wrapper' && wrapper.children.length === 1;
+        row.remove();
+
+        if (wasOnlyRow) {
+            pridatProduktRow('direct-sale-products-wrapper');
+            return;
+        }
+
+        scheduleDirectSaleSummaryRefresh();
+    }
+
+    function setupProductRow(rowEl, wrapperId, productId = '', price = '', amount = 1) {
+        if (!rowEl) return null;
+
+        rowEl.style.display = 'flex';
+        rowEl.style.alignItems = 'center';
+        rowEl.style.gap = '10px';
+        rowEl.style.flexWrap = 'nowrap';
+        rowEl.style.marginBottom = '10px';
+
+        const hiddenEl = rowEl.querySelector('.product-hidden');
+        const searchEl = rowEl.querySelector('.product-search');
+        const priceEl = rowEl.querySelector('.product-price');
+        const amountEl = rowEl.querySelector('.product-amount');
+        const listEl = rowEl.querySelector('.ac-list');
+        const removeBtn = rowEl.querySelector('.btn-remove');
+
+        if (!hiddenEl || !searchEl || !priceEl || !amountEl || !listEl) return rowEl;
+
         if (productId) {
             hiddenEl.value = productId;
-            let pMatch = PRODUCTS_DATA.find(p => p.id == productId);
-            if(pMatch) searchEl.value = getProductMeta(pMatch).inputValue;
+            const pMatch = PRODUCTS_DATA.find(p => p.id == productId);
+            if (pMatch) searchEl.value = getProductMeta(pMatch).inputValue;
             priceEl.value = price;
             amountEl.value = amount;
         }
-        
-        odeslatDoNaseptavaceProduktu(searchEl, hiddenEl, listEl, priceEl, amountEl);
-        
-        // Enter v poli Množství přidá další řádek produktu
-        amountEl.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                pridatProduktRow(wrapperId);
-                setTimeout(() => {
-                    let last = wrapper.lastElementChild;
-                    if(last) {
-                        last.scrollIntoView({behavior: "smooth", block: "center"});
-                        let s = last.querySelector('.product-search');
-                        if(s) s.focus();
-                    }
-                }, 50);
-            }
-        });
 
+        if (rowEl.dataset.initialized !== '1') {
+            odeslatDoNaseptavaceProduktu(searchEl, hiddenEl, listEl, priceEl, amountEl);
+            amountEl.addEventListener('input', scheduleDirectSaleSummaryRefresh);
+            amountEl.addEventListener('change', scheduleDirectSaleSummaryRefresh);
+            priceEl.addEventListener('input', scheduleDirectSaleSummaryRefresh);
+            priceEl.addEventListener('change', scheduleDirectSaleSummaryRefresh);
+
+            amountEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    pridatProduktRow(wrapperId);
+                    setTimeout(() => {
+                        const last = document.getElementById(wrapperId)?.lastElementChild;
+                        if (last) {
+                            scrollDirectSaleRowIntoView(last);
+                            const s = last.querySelector('.product-search');
+                            if (s) s.focus({ preventScroll: true });
+                        }
+                    }, 50);
+                }
+            });
+
+            if (removeBtn) {
+                removeBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    removeProductRow(this);
+                });
+            }
+
+            rowEl.dataset.initialized = '1';
+        }
+
+        return rowEl;
+    }
+
+    function pridatProduktRow(wrapperId, productId = '', price = '', amount = 1) {
+        const wrapper = document.getElementById(wrapperId);
+        if (!wrapper) return;
+
+        const tpl = document.getElementById('product-row-template').content.cloneNode(true);
         wrapper.appendChild(tpl);
-        
-        // Plynulé odscrollování na nový produkt
+
+        const lastRow = wrapper.lastElementChild;
+        setupProductRow(lastRow, wrapperId, productId, price, amount);
+        scheduleDirectSaleSummaryRefresh();
+
         if (!productId) {
             setTimeout(() => {
-                const lastRow = wrapper.lastElementChild;
                 scrollDirectSaleRowIntoView(lastRow);
-                let s = lastRow?.querySelector('.product-search');
-                if(s) s.focus({preventScroll: true});
+                const s = lastRow?.querySelector('.product-search');
+                if (s) s.focus({preventScroll: true});
             }, 100);
         }
-        
+
         lucide.createIcons();
     }
     
+    if (typeof window !== 'undefined') {
+        window.updateDirectSaleSummary = updateDirectSaleSummary;
+        window.scheduleDirectSaleSummaryRefresh = scheduleDirectSaleSummaryRefresh;
+        window.removeProductRow = removeProductRow;
+        window.pridatProduktRow = pridatProduktRow;
+    }
+
     function ukazSmazatModal(url) {
         document.getElementById('potvrdit-smazani-btn').href = withCsrf(url);
         showModalFlex('smazat-modal');
