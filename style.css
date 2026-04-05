@@ -358,9 +358,54 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     padding-bottom: 12px;
     border-bottom: 1px dashed #e2e8f0;
+}
+
+.bowl-meta-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.bowl-mix-autocomplete {
+    max-width: 340px;
+}
+
+.bowl-mix-input {
+    background: #f8fafc !important;
+    border-color: #eef2f7 !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #334155 !important;
+    padding: 10px 12px !important;
+}
+
+.bowl-mix-summary {
+    font-size: 12px;
+    color: #64748b;
+    background: linear-gradient(135deg, rgba(197,160,89,0.08), rgba(15,23,42,0.04));
+    border: 1px solid rgba(197,160,89,0.16);
+    border-radius: 12px;
+    padding: 9px 12px;
+    line-height: 1.45;
+}
+
+.mix-ratio-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #fff8e6;
+    border: 1px solid rgba(197,160,89,0.24);
+    color: var(--primary-dark);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
 }
 
 .bowl-title-group {

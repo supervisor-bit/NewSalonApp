@@ -15,6 +15,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $s_blow = isset($_POST['s_blow']) ? 1 : 0;
     $s_curl = isset($_POST['s_curl']) ? 1 : 0;
     $s_iron = isset($_POST['s_iron']) ? 1 : 0;
+    $build_bowl_storage_name = static function ($bowl_name, $mix_ratio = '') {
+        $clean_name = trim((string)$bowl_name);
+        $clean_ratio = trim((string)$mix_ratio);
+        if ($clean_name === '') {
+            $clean_name = 'Miska';
+        }
+        return $clean_ratio !== '' ? ($clean_name . ' || ' . $clean_ratio) : $clean_name;
+    };
 
     try {
         $pdo->beginTransaction();
@@ -31,13 +39,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         foreach ($bowl_names as $bIndex => $bName) {
             if (empty($bName)) continue;
+            $mixRatio = trim((string)($_POST['bowl_ratio'][$bIndex] ?? ''));
+            $storedBowlName = $build_bowl_storage_name($bName, $mixRatio);
             
             $materials = $_POST['material_id'][$bIndex] ?? [];
             $amounts = $_POST['amount_g'][$bIndex] ?? [];
             
             for ($i = 0; $i < count($materials); $i++) {
                 if (!empty($materials[$i]) && (!empty($amounts[$i]) || $amounts[$i] === '0')) {
-                    $f_stmt->execute([$visit_id, $materials[$i], $amounts[$i], $bName]);
+                    $f_stmt->execute([$visit_id, $materials[$i], $amounts[$i], $storedBowlName]);
                 }
             }
         }

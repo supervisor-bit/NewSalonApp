@@ -21,6 +21,17 @@ if ($flash_message === '') {
     }
 }
 $toast_class = stripos($flash_message, 'chyba') !== false ? 'm-toast m-toast-error' : 'm-toast';
+$parse_bowl_meta = static function ($stored_name) {
+    $stored_name = trim((string)$stored_name);
+    if ($stored_name === '') {
+        return ['name' => 'Miska', 'ratio' => ''];
+    }
+    if (strpos($stored_name, '||') !== false) {
+        [$name, $ratio] = array_map('trim', explode('||', $stored_name, 2));
+        return ['name' => $name !== '' ? $name : 'Miska', 'ratio' => $ratio];
+    }
+    return ['name' => $stored_name, 'ratio' => ''];
+};
 
 // 2. Kompletní historie receptur
 $past_stmt = $pdo->prepare("
@@ -46,9 +57,18 @@ foreach($raw_past as $rp) {
         ];
     }
     if($rp['bowl_name']) {
-        $bn = $rp['bowl_name'];
-        if(!isset($past_visits[$vid]['bowls'][$bn])) $past_visits[$vid]['bowls'][$bn] = [];
-        $past_visits[$vid]['bowls'][$bn][] = [
+        $bowl_meta = $parse_bowl_meta($rp['bowl_name']);
+        $bn = $bowl_meta['name'];
+        if(!isset($past_visits[$vid]['bowls'][$bn])) {
+            $past_visits[$vid]['bowls'][$bn] = [
+                'ratio' => $bowl_meta['ratio'],
+                'items' => []
+            ];
+        }
+        if ($past_visits[$vid]['bowls'][$bn]['ratio'] === '' && $bowl_meta['ratio'] !== '') {
+            $past_visits[$vid]['bowls'][$bn]['ratio'] = $bowl_meta['ratio'];
+        }
+        $past_visits[$vid]['bowls'][$bn]['items'][] = [
             'name' => $rp['m_cat'].' '.$rp['m_name'], 
             'amt' => $rp['amount_g']
         ];
@@ -189,10 +209,15 @@ foreach($raw_past as $rp) {
                             <div class="m-acc-note"><?= nl2br(htmlspecialchars($v['note'])) ?></div>
                         <?php endif; ?>
                         
-                        <?php foreach ($v['bowls'] as $bName => $mats): ?>
+                        <?php foreach ($v['bowls'] as $bName => $bowlData): ?>
                             <div class="m-acc-bowl">
-                                <div class="m-acc-bowl-title"><?= htmlspecialchars($bName) ?></div>
-                                <?php foreach ($mats as $m): ?>
+                                <div class="m-acc-bowl-title">
+                                    <?= htmlspecialchars($bName) ?>
+                                    <?php if (!empty($bowlData['ratio'])): ?>
+                                        <span style="margin-left:6px; background:#fff8e6; color:#a16207; border:1px solid rgba(212,175,55,0.28); padding:2px 7px; border-radius:999px; font-size:10px; font-weight:800;">Poměr <?= htmlspecialchars($bowlData['ratio']) ?></span>
+                                    <?php endif; ?>
+                                </div>
+                                <?php foreach ($bowlData['items'] as $m): ?>
                                     <div class="m-acc-mat">• <?= htmlspecialchars($m['name']) ?> <strong><?= $m['amt'] ?>g</strong></div>
                                 <?php endforeach; ?>
                             </div>

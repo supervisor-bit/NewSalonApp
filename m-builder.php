@@ -23,6 +23,18 @@ $page_heading = $edit_id > 0 ? 'ÚPRAVA NÁVŠTĚVY' : 'NOVÁ NÁVŠTĚVA';
 $prefill_note = '';
 $success_state = $edit_id > 0 ? 'updated' : 'created';
 
+$parse_bowl_meta = static function ($stored_name) {
+    $stored_name = trim((string)$stored_name);
+    if ($stored_name === '') {
+        return ['name' => 'Miska', 'ratio' => ''];
+    }
+    if (strpos($stored_name, '||') !== false) {
+        [$name, $ratio] = array_map('trim', explode('||', $stored_name, 2));
+        return ['name' => $name !== '' ? $name : 'Miska', 'ratio' => $ratio];
+    }
+    return ['name' => $stored_name, 'ratio' => ''];
+};
+
 if ($source_id > 0) {
     // 1. Receptury
     $cv_stmt = $pdo->prepare("
@@ -33,9 +45,18 @@ if ($source_id > 0) {
     ");
     $cv_stmt->execute([$source_id]);
     foreach ($cv_stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $bn = $row['bowl_name'] ?: 'Miska';
-        if (!isset($prefill_bowls[$bn])) $prefill_bowls[$bn] = [];
-        $prefill_bowls[$bn][] = [
+        $bowl_meta = $parse_bowl_meta($row['bowl_name'] ?? '');
+        $bn = $bowl_meta['name'];
+        if (!isset($prefill_bowls[$bn])) {
+            $prefill_bowls[$bn] = [
+                'ratio' => $bowl_meta['ratio'],
+                'items' => []
+            ];
+        }
+        if ($prefill_bowls[$bn]['ratio'] === '' && $bowl_meta['ratio'] !== '') {
+            $prefill_bowls[$bn]['ratio'] = $bowl_meta['ratio'];
+        }
+        $prefill_bowls[$bn]['items'][] = [
             'id' => (int)$row['material_id'],
             'name' => ($row['m_cat'] ? $row['m_cat'].' ' : '') . ($row['m_name'] ?: 'Neznámý materiál'),
             'amt' => $row['amount_g']
@@ -186,11 +207,125 @@ if ($source_id > 0) {
         };
 
         let bowlCounter = 0;
+        const MIX_RATIO_SUGGESTIONS = [
+            { value: '1:1', note: 'stejný díl barvy a oxidantu' },
+            { value: '1:1,5', note: 'nejčastější permanentní barvy' },
+            { value: '1:2', note: 'tonery a lehčí míchání' },
+            { value: '1:3', note: 'více naředěná směs' }
+        ];
 
-        function addBowl() {
+        function normalizeRatioValue(value) {
+            return String(value || '').trim().replace(/\s+/g, '').replace(',', '.');
+        }
+
+        function formatMixNumber(value) {
+            const rounded = Math.round(Number(value || 0) * 10) / 10;
+            if (!Number.isFinite(rounded)) return '0';
+            return Number.isInteger(rounded) ? String(rounded) : String(rounded).replace('.', ',');
+        }
+
+        function parseRatioMultiplier(value) {
+            const normalized = normalizeRatioValue(value);
+            const match = normalized.match(/^(\d+(?:\.\d+)?)[:/](\d+(?:\.\d+)?)$/);
+            if (!match) return null;
+            const colorPart = parseFloat(match[1]);
+            const oxidantPart = parseFloat(match[2]);
+            if (!colorPart || !oxidantPart) return null;
+            return oxidantPart / colorPart;
+        }
+
+        function isOxidantMaterial(materialId) {
+            const material = materialsData.find(m => String(m.id) === String(materialId));
+            if (!material) return false;
+            const haystack = `${material.brand || ''} ${material.category || ''} ${material.name || ''}`.toLowerCase();
+            return haystack.includes('oxid') || haystack.includes('oxyd');
+        }
+
+        function updateMobileBowlSummary(bowlDiv) {
+            if (!bowlDiv) return;
+            const summary = bowlDiv.querySelector('.m-bowl-ratio-summary');
+            const ratioInput = bowlDiv.querySelector('.m-bowl-ratio-input');
+            if (!summary || !ratioInput) return;
+
+            let colorTotal = 0;
+            let oxidantTotal = 0;
+            bowlDiv.querySelectorAll('.m-row').forEach(row => {
+                const hidden = row.querySelector('input[type="hidden"]');
+                const amountInput = row.querySelector('.m-amount-input');
+                const grams = parseFloat(String(amountInput?.value || '').replace(',', '.')) || 0;
+                if (grams <= 0) return;
+                if (isOxidantMaterial(hidden?.value)) oxidantTotal += grams;
+                else colorTotal += grams;
+            });
+
+            const ratioValue = String(ratioInput.value || '').trim();
+            const multiplier = parseRatioMultiplier(ratioValue);
+            const parts = [];
+            if (colorTotal > 0) parts.push(`Barva ${formatMixNumber(colorTotal)} g`);
+            if (ratioValue) parts.push(`Poměr ${ratioValue}`);
+            if (multiplier !== null && colorTotal > 0) parts.push(`Oxidant cca ${formatMixNumber(colorTotal * multiplier)} g`);
+            if (oxidantTotal > 0) parts.push(`Zadáno oxidantu ${formatMixNumber(oxidantTotal)} g`);
+
+            summary.textContent = parts.length > 0
+                ? parts.join(' • ')
+                : 'Tip: napiš třeba 1:1 nebo 1:1,5 a hned uvidíš, kolik oxidantu zhruba přilít.';
+        }
+
+        function setupRatioAutocomplete(input, bowlDiv) {
+            const list = input.parentElement.querySelector('.ac-list');
+            if (!list) return;
+
+            function renderRatioList(query = '') {
+                const normalized = normalizeRatioValue(query);
+                list.innerHTML = '';
+                const matches = MIX_RATIO_SUGGESTIONS.filter(item => {
+                    return !normalized || normalizeRatioValue(item.value).includes(normalized) || item.note.toLowerCase().includes(String(query || '').toLowerCase());
+                });
+                if (matches.length === 0) {
+                    list.style.display = 'none';
+                    return;
+                }
+                matches.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'ac-item';
+                    div.innerHTML = `<strong style="color:var(--primary);">${item.value}</strong><br><span style="font-size:12px;color:#64748b;">${item.note}</span>`;
+                    div.onmousedown = function(e) {
+                        e.preventDefault();
+                        input.value = item.value;
+                        list.style.display = 'none';
+                        updateMobileBowlSummary(bowlDiv);
+                    };
+                    list.appendChild(div);
+                });
+                list.style.display = 'block';
+            }
+
+            input.addEventListener('input', function() {
+                renderRatioList(this.value);
+                updateMobileBowlSummary(bowlDiv);
+            });
+            input.addEventListener('focus', function() {
+                renderRatioList(this.value);
+                this.select();
+            });
+            input.addEventListener('blur', () => {
+                setTimeout(() => { list.style.display = 'none'; }, 200);
+            });
+        }
+
+        function removeMobileRow(btn) {
+            const row = btn.closest('.m-row');
+            const rowsWrap = row?.parentElement;
+            if (row && rowsWrap && rowsWrap.children.length > 1) {
+                row.remove();
+                updateMobileBowlSummary(rowsWrap.closest('.m-bowl'));
+            }
+        }
+
+        function addBowl(bowlName = '', mixRatio = '', shouldScroll = true) {
             const wrap = document.getElementById('m-bowls');
             const count = wrap.querySelectorAll('.m-bowl').length + 1;
-            const bName = "Miska " + count;
+            const bName = bowlName || ("Miska " + count);
             
             const bowlDiv = document.createElement('div');
             bowlDiv.className = 'm-bowl';
@@ -205,16 +340,27 @@ if ($source_id > 0) {
                     <input type="text" class="m-bowl-title" name="bowl_names[${bIdx}]" value="${bName}" onclick="this.select()">
                     <button type="button" class="m-bowl-del" onclick="this.parentElement.parentElement.remove()">×</button>
                 </div>
+                <div class="m-bowl-ratio-wrap">
+                    <div style="position:relative;">
+                        <input type="text" class="m-bowl-ratio-input" name="bowl_ratio[${bIdx}]" value="${mixRatio || ''}" placeholder="Poměr míchání, např. 1:1,5" autocomplete="off">
+                        <div class="ac-list"></div>
+                    </div>
+                    <div class="m-bowl-ratio-summary">Tip: napiš třeba 1:1 nebo 1:1,5 a hned uvidíš, kolik oxidantu zhruba přilít.</div>
+                </div>
                 <div class="m-bowl-rows"></div>
                 <button type="button" class="m-add-row-btn" onclick="addRow(this.previousElementSibling, true)">+ Přidat barvu / oxidant</button>
             `;
             wrap.appendChild(bowlDiv);
+            setupRatioAutocomplete(bowlDiv.querySelector('.m-bowl-ratio-input'), bowlDiv);
             addRow(bowlDiv.querySelector('.m-bowl-rows'), false);
+            updateMobileBowlSummary(bowlDiv);
             
             // Plynulé odscrollování na novou misku
-            setTimeout(() => {
-                bowlDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 50);
+            if (shouldScroll) {
+                setTimeout(() => {
+                    bowlDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 50);
+            }
         }
 
         // Generate a random ID for the radio buttons per bowl
@@ -232,10 +378,14 @@ if ($source_id > 0) {
                 </div>
                 <div class="m-shop-toggle"></div>
                 <input type="number" name="amount_g[${bIdx}][]" class="m-amount-input" placeholder="g">
-                <button type="button" class="m-row-del" onclick="if(this.parentElement.parentElement.children.length > 1) this.parentElement.remove()">×</button>
+                <button type="button" class="m-row-del" onclick="removeMobileRow(this)">×</button>
             `;
             container.appendChild(rowDiv);
             setupAutocomplete(rowDiv.querySelector('.m-material-input'));
+            rowDiv.querySelector('.m-amount-input').addEventListener('input', function() {
+                updateMobileBowlSummary(container.closest('.m-bowl'));
+            });
+            updateMobileBowlSummary(container.closest('.m-bowl'));
             if(focus) {
                 rowDiv.querySelector('.m-material-input').focus();
                 // Na mobilu odscrollovat na nový řádek, aby nebyl schovaný pod klávesnicí
@@ -272,6 +422,7 @@ if ($source_id > 0) {
                             input.value = m.category + ' ' + m.name;
                             list.style.display = 'none';
                             updateShopIcon(wrap.nextElementSibling, m.id, m.needs_buying);
+                            updateMobileBowlSummary(input.closest('.m-bowl'));
                             let amountInput = wrap.nextElementSibling.nextElementSibling;
                             if(amountInput) amountInput.focus();
                         };
@@ -292,46 +443,40 @@ if ($source_id > 0) {
             
             const wrap = document.getElementById('m-bowls');
             wrap.innerHTML = ''; 
-            let localBowlCount = 0;
             
-            for (const [bName, mats] of Object.entries(pastBowls)) {
-                // Přidat misku
-                const bIdx = bowlCounter++;
-                const bowlDiv = document.createElement('div');
-                bowlDiv.className = 'm-bowl';
-                bowlDiv.dataset.index = bIdx;
-                bowlDiv.innerHTML = `
-                    <input type="hidden" name="bowl_index[]" value="${bIdx}">
-                    <div class="m-bowl-header">
-                        <input type="text" class="m-bowl-title" name="bowl_names[${bIdx}]" value="${bName}" onclick="this.select()">
-                        <button type="button" class="m-bowl-del" onclick="this.parentElement.parentElement.remove()">×</button>
-                    </div>
-                    <div class="m-bowl-rows"></div>
-                    <button type="button" class="m-add-row-btn" onclick="addRow(this.previousElementSibling, true)">+ Přidat barvu / oxidant</button>
-                `;
-                wrap.appendChild(bowlDiv);
-                
+            for (const [bName, bowlDataRaw] of Object.entries(pastBowls)) {
+                const bowlData = Array.isArray(bowlDataRaw)
+                    ? { ratio: '', items: bowlDataRaw }
+                    : { ratio: bowlDataRaw?.ratio || '', items: Array.isArray(bowlDataRaw?.items) ? bowlDataRaw.items : [] };
+
+                addBowl(bName, bowlData.ratio || '', false);
+                const bowlDiv = wrap.lastElementChild;
                 const rowsCont = bowlDiv.querySelector('.m-bowl-rows');
-                mats.forEach(m => {
-                    // Přidat řádek
+                rowsCont.innerHTML = '';
+
+                (bowlData.items || []).forEach(m => {
                     const rowDiv = document.createElement('div');
                     rowDiv.className = 'm-row';
                     rowDiv.innerHTML = `
                         <div class="m-material-wrap">
-                            <input type="hidden" name="material_id[${bIdx}][]" value="${m.id}">
+                            <input type="hidden" name="material_id[${bowlDiv.dataset.index}][]" value="${m.id}">
                             <input type="text" class="m-material-input" placeholder="Hledat..." autocomplete="off" value="${m.name}">
                             <div class="ac-list"></div>
                         </div>
                         <div class="m-shop-toggle"></div>
-                        <input type="number" name="amount_g[${bIdx}][]" class="m-amount-input" placeholder="g" value="${m.amt}">
-                        <button type="button" class="m-row-del" onclick="if(this.parentElement.parentElement.children.length > 1) this.parentElement.remove()">×</button>
+                        <input type="number" name="amount_g[${bowlDiv.dataset.index}][]" class="m-amount-input" placeholder="g" value="${m.amt}">
+                        <button type="button" class="m-row-del" onclick="removeMobileRow(this)">×</button>
                     `;
                     rowsCont.appendChild(rowDiv);
                     setupAutocomplete(rowDiv.querySelector('.m-material-input'));
-                    // Zjistit aktuální stav needs_buying z dat
+                    rowDiv.querySelector('.m-amount-input').addEventListener('input', function() {
+                        updateMobileBowlSummary(bowlDiv);
+                    });
                     let matFull = materialsData.find(md => md.id == m.id);
                     updateShopIcon(rowDiv.querySelector('.m-shop-toggle'), m.id, matFull ? matFull.needs_buying : 0);
                 });
+
+                updateMobileBowlSummary(bowlDiv);
             }
             
             lucide.createIcons();

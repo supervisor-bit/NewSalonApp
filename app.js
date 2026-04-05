@@ -246,7 +246,7 @@
     }
 
     // PŘIDÁVÁNÍ MISEK (BOWLS) A ŘÁDKŮ
-    function pridatMisku(wrapperId, bowlName = '') {
+    function pridatMisku(wrapperId, bowlName = '', mixRatio = '') {
         const wrapper = document.getElementById(wrapperId);
         let count = wrapper.querySelectorAll('.bowl-container').length + 1;
         let bName = bowlName || ('Miska ' + count);
@@ -254,11 +254,14 @@
         const tpl = document.getElementById('bowl-template').content.cloneNode(true);
         const container = tpl.querySelector('.bowl-container');
         const inputName = tpl.querySelector('.bowl-name-input');
+        const mixInput = tpl.querySelector('.bowl-mix-input');
         inputName.value = bName;
+        if (mixInput) mixInput.value = mixRatio || '';
         
         // Jedinečný index pre misku, spolehlivě zabrání kolizím při posílaní PHP pole
         let bIndex = new Date().getTime() + count; 
         inputName.name = `bowl_names[${bIndex}]`;
+        if (mixInput) mixInput.name = `bowl_ratio[${bIndex}]`;
         container.dataset.index = bIndex;
 
         // PŘIDÁNO: Skrytý input pro pole bowl_index[], aby server věděl o všech miskách
@@ -271,7 +274,10 @@
         wrapper.appendChild(tpl);
         
         const finalContainer = wrapper.lastElementChild;
+        const finalMixInput = finalContainer.querySelector('.bowl-mix-input');
+        if (finalMixInput) setupMixRatioAutocomplete(finalMixInput, finalContainer);
         pridatRadekKMisaceBtn(finalContainer.querySelector('button[onclick^="pridatRadek"]'));
+        updateBowlMixInfo(finalContainer);
         
         if (!bowlName) {
             setTimeout(() => {
@@ -281,7 +287,7 @@
             }, 100);
         }
         
-        return { containerUl: finalContainer.querySelector('.bowl-rows-container'), index: bIndex };
+        return { containerUl: finalContainer.querySelector('.bowl-rows-container'), index: bIndex, bowlEl: finalContainer };
     }
 
     function escapeRegExp(str) {
@@ -341,6 +347,178 @@
             cleanName,
             inputValue: brand ? `${brand} – ${cleanName}` : cleanName
         };
+    }
+
+    const MIX_RATIO_SUGGESTIONS = [
+        { value: '1:1', note: 'stejný díl barvy a oxidantu' },
+        { value: '1:1,5', note: 'nejčastější krémové barvy' },
+        { value: '1:2', note: 'tonery a lehčí míchání' },
+        { value: '1:3', note: 'více naředěná směs' }
+    ];
+
+    function normalizeRatioValue(value) {
+        return String(value || '').trim().replace(/\s+/g, '').replace(',', '.');
+    }
+
+    function formatMixNumber(value) {
+        const rounded = Math.round(Number(value || 0) * 10) / 10;
+        if (!Number.isFinite(rounded)) return '0';
+        return Number.isInteger(rounded) ? String(rounded) : String(rounded).replace('.', ',');
+    }
+
+    function parseRatioMultiplier(value) {
+        const normalized = normalizeRatioValue(value);
+        const match = normalized.match(/^(\d+(?:\.\d+)?)[:/](\d+(?:\.\d+)?)$/);
+        if (!match) return null;
+        const colorPart = parseFloat(match[1]);
+        const oxidantPart = parseFloat(match[2]);
+        if (!colorPart || !oxidantPart) return null;
+        return oxidantPart / colorPart;
+    }
+
+    function isOxidantMaterial(materialId) {
+        const material = MATERIALS_DATA.find(m => String(m.id) === String(materialId));
+        if (!material) return false;
+        const haystack = `${material.brand || ''} ${material.category || ''} ${material.name || ''}`.toLowerCase();
+        return haystack.includes('oxid') || haystack.includes('oxyd');
+    }
+
+    function setupMixRatioAutocomplete(input, bowlContainer) {
+        const listEl = input.parentElement.querySelector('.ac-list');
+        if (!listEl) return;
+
+        function renderRatioList(query = '') {
+            const normalized = normalizeRatioValue(query);
+            listEl.innerHTML = '';
+
+            const matches = MIX_RATIO_SUGGESTIONS.filter(item => {
+                const note = item.note.toLowerCase();
+                return !normalized || normalizeRatioValue(item.value).includes(normalized) || note.includes(String(query || '').toLowerCase());
+            });
+
+            if (matches.length === 0) {
+                listEl.style.display = 'none';
+                return;
+            }
+
+            matches.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = 'ac-item' + (idx === 0 ? ' ac-active' : '');
+                div.innerHTML = `
+                    <div style="display:flex; flex-direction:column; gap:2px;">
+                        <span style="font-weight:800; color:var(--primary);">${item.value}</span>
+                        <span style="font-size:11px; color:#64748b;">${item.note}</span>
+                    </div>
+                `;
+                div.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    input.value = item.value;
+                    listEl.style.display = 'none';
+                    updateBowlMixInfo(bowlContainer);
+                });
+                listEl.appendChild(div);
+            });
+
+            listEl.style.display = 'block';
+        }
+
+        input.addEventListener('input', function() {
+            renderRatioList(this.value);
+            updateBowlMixInfo(bowlContainer);
+        });
+        input.addEventListener('focus', function() {
+            renderRatioList(this.value);
+            this.select();
+        });
+        input.addEventListener('blur', function() {
+            setTimeout(() => { listEl.style.display = 'none'; }, 200);
+        });
+        input.addEventListener('keydown', function(e) {
+            const items = listEl.querySelectorAll('.ac-item');
+            if (e.key === 'Escape') {
+                listEl.style.display = 'none';
+                return;
+            }
+            if (e.key === 'Enter' && items.length > 0) {
+                e.preventDefault();
+                const activeIdx = Array.from(items).findIndex(i => i.classList.contains('ac-active'));
+                (activeIdx > -1 ? items[activeIdx] : items[0]).dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+                return;
+            }
+            if (items.length === 0) return;
+            let activeIdx = Array.from(items).findIndex(i => i.classList.contains('ac-active'));
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (activeIdx > -1) items[activeIdx].classList.remove('ac-active');
+                let next = (activeIdx + 1) % items.length;
+                items[next].classList.add('ac-active');
+                items[next].scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (activeIdx > -1) items[activeIdx].classList.remove('ac-active');
+                let prev = activeIdx - 1 < 0 ? items.length - 1 : activeIdx - 1;
+                items[prev].classList.add('ac-active');
+                items[prev].scrollIntoView({ block: 'nearest' });
+            }
+        });
+    }
+
+    function updateBowlMixInfo(bowlContainer) {
+        if (!bowlContainer) return;
+        const summaryEl = bowlContainer.querySelector('.bowl-mix-summary');
+        const ratioInput = bowlContainer.querySelector('.bowl-mix-input');
+        if (!summaryEl || !ratioInput) return;
+
+        let colorTotal = 0;
+        let oxidantTotal = 0;
+        bowlContainer.querySelectorAll('.recept-row').forEach(row => {
+            const hiddenEl = row.querySelector('.material-hidden');
+            const amountEl = row.querySelector('.amount-input');
+            const grams = parseFloat(String(amountEl?.value || '').replace(',', '.')) || 0;
+            if (grams <= 0) return;
+            if (isOxidantMaterial(hiddenEl?.value)) oxidantTotal += grams;
+            else colorTotal += grams;
+        });
+
+        const ratioValue = String(ratioInput.value || '').trim();
+        const multiplier = parseRatioMultiplier(ratioValue);
+        const parts = [];
+
+        if (colorTotal > 0) parts.push(`Barva ${formatMixNumber(colorTotal)} g`);
+        if (ratioValue) parts.push(`Poměr ${ratioValue}`);
+        if (multiplier !== null && colorTotal > 0) parts.push(`Oxidant cca ${formatMixNumber(colorTotal * multiplier)} g`);
+        if (oxidantTotal > 0) parts.push(`Zadáno oxidantu ${formatMixNumber(oxidantTotal)} g`);
+
+        summaryEl.textContent = parts.length > 0
+            ? parts.join(' • ')
+            : 'Tip: napiš třeba 1:1 nebo 1:1,5 a hned uvidíš doporučené gramy oxidantu.';
+    }
+
+    function removeRecipeRow(btn) {
+        const row = btn.closest('.recept-row');
+        const rowsWrap = row?.parentElement;
+        if (row && rowsWrap && rowsWrap.children.length > 1) {
+            row.remove();
+            updateBowlMixInfo(rowsWrap.closest('.bowl-container'));
+        }
+    }
+
+    function getNormalizedFormulaGroups(formulasJson) {
+        const raw = JSON.parse(formulasJson || '{}');
+        const normalized = {};
+
+        Object.entries(raw).forEach(([bowlName, bowlData]) => {
+            if (Array.isArray(bowlData)) {
+                normalized[bowlName] = { ratio: '', items: bowlData };
+            } else {
+                normalized[bowlName] = {
+                    ratio: bowlData?.ratio || '',
+                    items: Array.isArray(bowlData?.items) ? bowlData.items : []
+                };
+            }
+        });
+
+        return normalized;
     }
 
     function odeslatDoNaseptavace(searchEl, hiddenEl, listEl) {
@@ -407,6 +585,7 @@
                             let matFull = MATERIALS_DATA.find(mat => mat.id == m.id);
                             updateShopIconPC(shopCont, m.id, matFull ? matFull.needs_buying : 0);
                         }
+                        updateBowlMixInfo(row.closest('.bowl-container'));
                     }
 
                     let amountBox = searchEl.closest('.recept-row').querySelector('.amount-input');
@@ -596,6 +775,9 @@
         }
         
         odeslatDoNaseptavace(searchEl, hiddenEl, listEl);
+        inputEl.addEventListener('input', function() {
+            updateBowlMixInfo(bowlContainer);
+        });
         
         inputEl.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
@@ -610,6 +792,7 @@
         });
 
         rowsWrap.appendChild(rTpl);
+        updateBowlMixInfo(bowlContainer);
 
         // Plynulé odscrollování u nového řádku (pokud nevkládáme z historie)
         if (!matId || arguments[3] === true) {
@@ -653,19 +836,21 @@
         let container = document.getElementById('bowls-wrapper-edit');
         if(container) {
             container.innerHTML = '';
-            let dict = JSON.parse(formulasJson || '{}');
+            let dict = getNormalizedFormulaGroups(formulasJson);
             let names = Object.keys(dict);
             if (names.length === 0) {
                 pridatMisku('bowls-wrapper-edit', 'Miska 1');
             } else {
                 names.forEach(bName => {
-                    let bowlSetup = pridatMisku('bowls-wrapper-edit', bName);
+                    const bowlData = dict[bName] || { ratio: '', items: [] };
+                    let bowlSetup = pridatMisku('bowls-wrapper-edit', bName, bowlData.ratio || '');
                     if(bowlSetup && bowlSetup.containerUl) {
                         bowlSetup.containerUl.innerHTML = '';
-                        dict[bName].forEach(f => {
+                        (bowlData.items || []).forEach(f => {
                             let tempBtn = bowlSetup.containerUl.parentElement.querySelector('button[onclick^="pridatRadek"]');
                             pridatRadekKMisaceBtn(tempBtn, f.mat_id, f.g);
                         });
+                        updateBowlMixInfo(bowlSetup.bowlEl);
                     }
                 });
             }
@@ -717,19 +902,21 @@
         resetNovaNavstevaForm();
         
         // Populate Formulas
-        let dict = JSON.parse(formulasJson || '{}');
+        let dict = getNormalizedFormulaGroups(formulasJson);
         let names = Object.keys(dict);
         if (names.length === 0) {
             pridatMisku('bowls-wrapper-new', 'Miska 1');
         } else {
             names.forEach(bName => {
-                let bowlSetup = pridatMisku('bowls-wrapper-new', bName);
+                const bowlData = dict[bName] || { ratio: '', items: [] };
+                let bowlSetup = pridatMisku('bowls-wrapper-new', bName, bowlData.ratio || '');
                 if(bowlSetup && bowlSetup.containerUl) {
                     bowlSetup.containerUl.innerHTML = '';
-                    dict[bName].forEach(f => {
+                    (bowlData.items || []).forEach(f => {
                         let tempBtn = bowlSetup.containerUl.parentElement.querySelector('button[onclick^="pridatRadek"]');
                         pridatRadekKMisaceBtn(tempBtn, f.mat_id, f.g);
                     });
+                    updateBowlMixInfo(bowlSetup.bowlEl);
                 }
             });
         }

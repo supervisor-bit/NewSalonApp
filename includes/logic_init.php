@@ -97,6 +97,21 @@ if (!$setup_needed) {
     ");
     $clients = $c_stmt->fetchAll();
 
+    $parse_bowl_meta = static function ($stored_name) {
+        $stored_name = trim((string)$stored_name);
+        if ($stored_name === '') {
+            return ['name' => 'Miska 1', 'ratio' => ''];
+        }
+        if (strpos($stored_name, '||') !== false) {
+            [$name, $ratio] = array_map('trim', explode('||', $stored_name, 2));
+            return [
+                'name' => $name !== '' ? $name : 'Miska 1',
+                'ratio' => $ratio
+            ];
+        }
+        return ['name' => $stored_name, 'ratio' => ''];
+    };
+
     // 2. Aktivní klient a jeho návštěvy
     if ($client_id > 0) {
         $ac_stmt = $pdo->prepare("SELECT * FROM clients WHERE id = ?");
@@ -143,15 +158,27 @@ if (!$setup_needed) {
                 ");
                 $f_stmt->execute([$v['id']]);
                 $formulas = $f_stmt->fetchAll();
+                foreach ($formulas as &$formula_row) {
+                    $bowl_meta = $parse_bowl_meta($formula_row['bowl_name'] ?? '');
+                    $formula_row['bowl_name'] = $bowl_meta['name'];
+                    $formula_row['mix_ratio'] = $bowl_meta['ratio'];
+                }
+                unset($formula_row);
                 $visits[$k]['formulas'] = $formulas;
                 
                 $array_for_json = [];
                 foreach ($formulas as $row) {
                     $bName = $row['bowl_name'] ?: 'Miska 1';
                     if (!isset($array_for_json[$bName])) {
-                        $array_for_json[$bName] = [];
+                        $array_for_json[$bName] = [
+                            'ratio' => (string)($row['mix_ratio'] ?? ''),
+                            'items' => []
+                        ];
                     }
-                    $array_for_json[$bName][] = [ 'mat_id' => $row['material_id'], 'g' => $row['amount_g'] ];
+                    if ($array_for_json[$bName]['ratio'] === '' && !empty($row['mix_ratio'])) {
+                        $array_for_json[$bName]['ratio'] = (string)$row['mix_ratio'];
+                    }
+                    $array_for_json[$bName]['items'][] = [ 'mat_id' => $row['material_id'], 'g' => $row['amount_g'] ];
                 }
                 $visits[$k]['formulas_json'] = json_encode($array_for_json);
                 

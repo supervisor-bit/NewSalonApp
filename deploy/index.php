@@ -883,11 +883,21 @@
                                     $grouped = [];
                                     foreach($v['formulas'] as $f) {
                                         $bn = $f['bowl_name'] ?: 'Miska 1';
-                                        $grouped[$bn][] = $f;
+                                        if (!isset($grouped[$bn])) {
+                                            $grouped[$bn] = [
+                                                'ratio' => (string)($f['mix_ratio'] ?? ''),
+                                                'items' => []
+                                            ];
+                                        }
+                                        if ($grouped[$bn]['ratio'] === '' && !empty($f['mix_ratio'])) {
+                                            $grouped[$bn]['ratio'] = (string)$f['mix_ratio'];
+                                        }
+                                        $grouped[$bn]['items'][] = $f;
                                     }
-                                    foreach($grouped as $bn => $items) {
-                                        $sHtml .= "<div style='font-size:11px; font-weight:700; color:#94a3b8; font-style:italic; margin:5px 0 2px 0;'>".htmlspecialchars($bn).":</div>";
-                                        foreach($items as $f) {
+                                    foreach($grouped as $bn => $bowlData) {
+                                        $ratioText = !empty($bowlData['ratio']) ? ' · poměr ' . htmlspecialchars($bowlData['ratio']) : '';
+                                        $sHtml .= "<div style='font-size:11px; font-weight:700; color:#94a3b8; font-style:italic; margin:5px 0 2px 0;'>".htmlspecialchars($bn).$ratioText.":</div>";
+                                        foreach($bowlData['items'] as $f) {
                                             $sHtml .= "<div style='font-size:13px; color:#475569; margin-bottom:2px; padding-left:10px;'>• " . htmlspecialchars($f['category'] . ' – ' . $f['name']) . " <b>" . $f['amount_g'] . "g</b></div>";
                                         }
                                     }
@@ -961,17 +971,28 @@
                                         $grouped = [];
                                         foreach($v['formulas'] as $f) {
                                             $b = $f['bowl_name'] ?: 'Miska 1';
-                                            if(!isset($grouped[$b])) $grouped[$b] = [];
-                                            $grouped[$b][] = $f;
+                                            if(!isset($grouped[$b])) {
+                                                $grouped[$b] = [
+                                                    'ratio' => (string)($f['mix_ratio'] ?? ''),
+                                                    'items' => []
+                                                ];
+                                            }
+                                            if ($grouped[$b]['ratio'] === '' && !empty($f['mix_ratio'])) {
+                                                $grouped[$b]['ratio'] = (string)$f['mix_ratio'];
+                                            }
+                                            $grouped[$b]['items'][] = $f;
                                         }
-                                        foreach($grouped as $bName => $items): ?>
+                                        foreach($grouped as $bName => $bowlData): ?>
                                             <div style="margin-bottom:10px;">
-                                                <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:5px; display:flex; align-items:center; gap:5px;">
+                                                <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:5px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                                                     <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                                                     <?= htmlspecialchars($bName) ?>
+                                                    <?php if (!empty($bowlData['ratio'])): ?>
+                                                        <span class="mix-ratio-pill">Poměr <?= htmlspecialchars($bowlData['ratio']) ?></span>
+                                                    <?php endif; ?>
                                                 </div>
                                                 <div style="padding-left:16px;">
-                                                    <?php  foreach($items as $f): ?>
+                                                    <?php  foreach($bowlData['items'] as $f): ?>
                                                         <div style="font-size:13px; color:#475569; margin-bottom:2px;">
                                                             <span style="color:#94a3b8; margin-right:4px;">•</span><?= htmlspecialchars($f['category'] . ' – ' . $f['name']) ?> <b style="color:#253344;"><?= $f['amount_g'] ?>g</b>
                                                         </div>

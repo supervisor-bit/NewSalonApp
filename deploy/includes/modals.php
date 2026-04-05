@@ -10,6 +10,13 @@
             </div>
             <button type="button" class="btn-remove" onclick="this.parentElement.parentElement.remove()" title="Smazat tuto misku">×</button>
         </div>
+        <div class="bowl-meta-row">
+            <div class="bowl-mix-autocomplete" style="position:relative;">
+                <input type="text" class="bowl-mix-input" placeholder="Poměr míchání, např. 1:1,5" autocomplete="off">
+                <div class="ac-list bowl-mix-list"></div>
+            </div>
+            <div class="bowl-mix-summary">Tip: napiš třeba 1:1 nebo 1:1,5 a hned uvidíš doporučené gramy oxidantu.</div>
+        </div>
         <div class="bowl-rows-container"></div>
         <button type="button" style="background:none; border:none; color:var(--primary); font-size:12px; font-weight:700; cursor:pointer; margin-top:10px; padding-left:30px; text-transform:uppercase; letter-spacing:0.5px;" onclick="pridatRadekKMisaceBtn(this)">+ PŘIDAT DALŠÍ BARVU / ODSTÍN</button>
     </div>
@@ -24,7 +31,7 @@
         </div>
         <div class="shop-toggle-pc" style="display:flex; align-items:center; justify-content:center; min-width:30px;"></div>
         <input type="number" class="amount-input" placeholder="g">
-        <button type="button" class="btn-remove" onclick="if(this.parentElement.parentElement.children.length > 1) this.parentElement.remove()" tabindex="-1">×</button>
+        <button type="button" class="btn-remove" onclick="removeRecipeRow(this)" tabindex="-1">×</button>
     </div>
 </template>
 
