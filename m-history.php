@@ -111,6 +111,36 @@ foreach($raw_past as $rp) {
         .m-acc-bowl { margin-bottom: 10px; }
         .m-acc-bowl-title { font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
         .m-acc-mat { font-size: 14px; color: var(--primary); margin-bottom: 2px; }
+        .m-acc-summary {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .m-acc-summary-item {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 9px 10px;
+        }
+        .m-acc-summary-item-wide { grid-column: 1 / -1; }
+        .m-acc-summary-label {
+            display: block;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #94a3b8;
+            margin-bottom: 4px;
+        }
+        .m-acc-summary-value {
+            display: block;
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--primary);
+            line-height: 1.35;
+        }
+        .m-acc-summary-value-small { font-size: 12px; }
         
         /* Action Buttons in History */
         .m-history-actions { display: flex; gap: 10px; margin-top: 15px; border-top: 1px solid #f1f5f9; padding-top: 15px; }
@@ -194,6 +224,36 @@ foreach($raw_past as $rp) {
             <div style="text-align:center; padding:40px; color:#94a3b8;">Zatím žádná historie.</div>
         <?php else: ?>
             <?php foreach ($past_visits as $v): ?>
+                <?php
+                    $total_material_g = 0;
+                    $total_color_g = 0;
+                    $total_oxidant_g = 0;
+                    $ratio_labels = [];
+                    $ratio_summary = 'Neuvedeno';
+
+                    foreach ($v['bowls'] as $bName => $bowlData) {
+                        if (!empty($bowlData['ratio'])) {
+                            $ratio_labels[] = $bName . ' ' . $bowlData['ratio'];
+                        }
+                        foreach ($bowlData['items'] as $m) {
+                            $amt = (float)($m['amt'] ?? 0);
+                            $total_material_g += $amt;
+                            $material_text = mb_strtolower((string)($m['name'] ?? ''));
+                            if (strpos($material_text, 'oxid') !== false || strpos($material_text, 'oxyd') !== false) {
+                                $total_oxidant_g += $amt;
+                            } else {
+                                $total_color_g += $amt;
+                            }
+                        }
+                    }
+
+                    if (!empty($ratio_labels)) {
+                        $ratio_summary = implode(' • ', $ratio_labels);
+                    } elseif ($total_color_g > 0 && $total_oxidant_g > 0) {
+                        $ratio_value = rtrim(rtrim(number_format($total_oxidant_g / $total_color_g, 2, ',', ''), '0'), ',');
+                        $ratio_summary = '1:' . $ratio_value;
+                    }
+                ?>
                 <div class="m-acc-item">
                     <div class="m-acc-header" onclick="toggleAcc(this)">
                         <div style="display:flex; align-items:center; gap:10px;">
@@ -207,6 +267,31 @@ foreach($raw_past as $rp) {
                     <div class="m-acc-content">
                         <?php if ($v['note']): ?>
                             <div class="m-acc-note"><?= nl2br(htmlspecialchars($v['note'])) ?></div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($v['bowls'])): ?>
+                            <div class="m-acc-summary">
+                                <div class="m-acc-summary-item">
+                                    <span class="m-acc-summary-label">Materiál celkem</span>
+                                    <span class="m-acc-summary-value"><?= number_format($total_material_g, 0, ',', ' ') ?> g</span>
+                                </div>
+                                <div class="m-acc-summary-item">
+                                    <span class="m-acc-summary-label">Barva</span>
+                                    <span class="m-acc-summary-value"><?= $total_color_g > 0 ? number_format($total_color_g, 0, ',', ' ') . ' g' : '—' ?></span>
+                                </div>
+                                <div class="m-acc-summary-item">
+                                    <span class="m-acc-summary-label">Oxidant</span>
+                                    <span class="m-acc-summary-value"><?= $total_oxidant_g > 0 ? number_format($total_oxidant_g, 0, ',', ' ') . ' g' : '—' ?></span>
+                                </div>
+                                <div class="m-acc-summary-item">
+                                    <span class="m-acc-summary-label">Misky</span>
+                                    <span class="m-acc-summary-value"><?= count($v['bowls']) ?></span>
+                                </div>
+                                <div class="m-acc-summary-item m-acc-summary-item-wide">
+                                    <span class="m-acc-summary-label">Poměr</span>
+                                    <span class="m-acc-summary-value m-acc-summary-value-small"><?= htmlspecialchars($ratio_summary) ?></span>
+                                </div>
+                            </div>
                         <?php endif; ?>
                         
                         <?php foreach ($v['bowls'] as $bName => $bowlData): ?>
