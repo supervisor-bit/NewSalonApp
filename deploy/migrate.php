@@ -26,6 +26,14 @@ try {
     } else {
         echo "Sloupec 'is_active' u klientek už existuje.\n";
     }
+
+    if (!in_array('client_tags', $clientColumns)) {
+        echo "Sloupec 'client_tags' u klientek chybí. Přidávám ho...\n";
+        $pdo->exec("ALTER TABLE clients ADD COLUMN client_tags VARCHAR(255) DEFAULT NULL");
+        echo "Sloupec pro interní štítky byl úspěšně přidán.\n";
+    } else {
+        echo "Sloupec 'client_tags' u klientek už existuje.\n";
+    }
     
     echo "Povedlo se! Aplikace by měla být zase funkční.\n";
 } catch (PDOException $e) {

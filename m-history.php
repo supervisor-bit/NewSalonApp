@@ -4,10 +4,20 @@ require_once 'db.php';
 $client_id = (int)($_GET['client_id'] ?? 0);
 if (!$client_id) { header("Location: m-index.php"); exit; }
 
+try {
+    $tagCol = $pdo->query("SHOW COLUMNS FROM clients LIKE 'client_tags'")->fetch();
+    if (!$tagCol) {
+        $pdo->exec("ALTER TABLE clients ADD COLUMN client_tags VARCHAR(255) DEFAULT NULL");
+    }
+} catch (Throwable $e) {
+    // Pokud migrace neproběhne, aplikace poběží dál bez štítků.
+}
+
 // 1. Základní info o klientce
 $stmt = $pdo->prepare("SELECT * FROM clients WHERE id = ?");
 $stmt->execute([$client_id]);
 $client = $stmt->fetch(PDO::FETCH_ASSOC);
+$client_tag_list = array_values(array_filter(array_map('trim', preg_split('/[,;]+/u', (string)($client['client_tags'] ?? '')))));
 
 $flash_message = trim((string)($_SESSION['msg'] ?? ''));
 unset($_SESSION['msg']);
@@ -186,6 +196,13 @@ foreach($raw_past as $rp) {
             <div><?= htmlspecialchars($client['last_name'].' '.$client['first_name']) ?></div>
             <div style="font-size:11px; font-weight:400; opacity:0.8;"><?= htmlspecialchars($client['phone'] ?: 'Bez tel.') ?></div>
         </div>
+        <?php if (!empty($client_tag_list)): ?>
+        <div class="m-tag-list">
+            <?php foreach (array_slice($client_tag_list, 0, 6) as $tag): ?>
+                <span class="m-tag-chip"><?= htmlspecialchars($tag) ?></span>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
         <?php if (!empty($client['allergy_note'])): ?>
         <div class="m-allergy-banner">
             <i data-lucide="alert-triangle" style="color:#ef4444; flex-shrink:0;"></i>

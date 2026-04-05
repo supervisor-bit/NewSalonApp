@@ -177,7 +177,7 @@
                 <span title="Stav retence: <?= $reason ?>" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:<?= $status_color ?>; box-shadow: 0 0 5px <?= $status_color ?>44; flex-shrink:0; margin-right: 5px;"></span>
                 <!-- KEBAB MENU TLAČÍTKO -->
                 <div onclick="event.preventDefault(); event.stopPropagation();">
-                    <button class="btn-menu" type="button" onclick='toggleMenu(event, <?= $c['id'] ?>, <?= json_encode($c['first_name']) ?>, <?= json_encode($c['last_name']) ?>, <?= json_encode($c['phone']) ?>, <?= (int)($c['preferred_interval'] ?? 0) ?>, <?= (int)($c['is_active'] ?? 1) ?>)'>⋮</button>
+                    <button class="btn-menu" type="button" onclick='toggleMenu(event, <?= $c['id'] ?>, <?= json_encode($c['first_name']) ?>, <?= json_encode($c['last_name']) ?>, <?= json_encode($c['phone']) ?>, <?= (int)($c['preferred_interval'] ?? 0) ?>, <?= json_encode($c['client_tags'] ?? '') ?>, <?= (int)($c['is_active'] ?? 1) ?>)'>⋮</button>
                 </div>
             </div>
         <?php  endforeach; ?>
@@ -854,6 +854,14 @@
                         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.15 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.09 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7a2 2 0 0 1 1.72 2.03z"/></svg>
                         <?= htmlspecialchars($active_client['phone'] ?: 'Telefon nezadán') ?>
                     </span>
+                    <?php $client_tags_list = array_values(array_filter(array_map('trim', preg_split('/[,;]+/u', (string)($active_client['client_tags'] ?? ''))))); ?>
+                    <?php if (!empty($client_tags_list)): ?>
+                        <div class="client-tag-list">
+                            <?php foreach (array_slice($client_tags_list, 0, 8) as $tag): ?>
+                                <span class="client-tag-chip"><?= htmlspecialchars($tag) ?></span>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
                 <div style="text-align:right; display:flex; gap:15px; align-items:center;">
                     <div style="text-align:right; background:rgba(255,255,255,0.5); padding:8px 15px; border-radius:12px; border:1px solid #e2e8f0;">

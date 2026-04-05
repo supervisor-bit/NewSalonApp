@@ -77,6 +77,23 @@ h1, h2, h3 { font-family: 'Outfit', sans-serif; font-weight: 700; }
     white-space: nowrap;
 }
 .m-client-arrow { color: #94a3b8; }
+.m-tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 16px 0;
+}
+.m-tag-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: #fff8e6;
+    border: 1px solid rgba(212, 175, 55, 0.28);
+    color: #8a6b15;
+    font-size: 11px;
+    font-weight: 700;
+}
 
 /* Builder */
 .m-section-title { font-size: 14px; text-transform: uppercase; color: #64748b; font-weight: 700; margin: 20px 16px 8px; letter-spacing: 0.5px; }

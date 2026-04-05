@@ -935,17 +935,40 @@
     // NÁSTROJE METADAT KLIENTA
     function ukazNovaKlientka() { showModalFlex('nova-klientka-modal'); }
     function schovNovaKlientka() { hideModal('nova-klientka-modal'); }
+
+    function toggleClientTagInput(inputId, tag) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+
+        let tags = String(input.value || '')
+            .split(',')
+            .map(item => item.trim())
+            .filter(Boolean);
+
+        const normalizedTag = normalizeSearchText(tag);
+        const existingIndex = tags.findIndex(item => normalizeSearchText(item) === normalizedTag);
+
+        if (existingIndex >= 0) {
+            tags.splice(existingIndex, 1);
+        } else {
+            tags.push(tag);
+        }
+
+        input.value = tags.join(', ');
+        input.focus();
+    }
     
     function ukazUpravuVarovani() { showModalFlex('edit-allergy-modal'); }
     function schovUpravuVarovani() { hideModal('edit-allergy-modal'); }
     
-    function ukazUpravuProfilu(event, id, radekFirst, radekLast, radekPhone, radekInterval) {
+    function ukazUpravuProfilu(event, id, radekFirst, radekLast, radekPhone, radekInterval, radekTags) {
         if(event) { event.preventDefault(); event.stopPropagation(); }
         document.getElementById('edit-client-profile-id').value = id;
         document.getElementById('edit-client-profile-first').value = radekFirst;
         document.getElementById('edit-client-profile-last').value = radekLast;
         document.getElementById('edit-client-profile-phone').value = radekPhone;
         document.getElementById('edit-client-profile-interval').value = radekInterval || '';
+        document.getElementById('edit-client-profile-tags').value = radekTags || '';
         showModalFlex('edit-client-profile-modal');
     }
     function schovUpravuProfilu() { hideModal('edit-client-profile-modal'); }
@@ -1213,7 +1236,7 @@
 
     // DROPDOWN MENU - GLOBÁLNÍ
     let activeDropdownId = null;
-    function toggleMenu(event, clientId, cFirst, cLast, cPhone, cInterval, cIsActive) {
+    function toggleMenu(event, clientId, cFirst, cLast, cPhone, cInterval, cTags, cIsActive) {
         event.preventDefault(); event.stopPropagation();
         let menu = document.getElementById('global-dropdown');
         if (activeDropdownId === clientId && menu.style.display === 'block') {
@@ -1228,7 +1251,7 @@
         
         document.getElementById('menu-global-edit').onclick = function(e) { 
             e.preventDefault(); e.stopPropagation(); menu.style.display = 'none'; 
-            ukazUpravuProfilu(e, clientId, cFirst, cLast, cPhone, cInterval); 
+            ukazUpravuProfilu(e, clientId, cFirst, cLast, cPhone, cInterval, cTags); 
         };
 
         const toggleLink = document.getElementById('menu-global-toggle-status');

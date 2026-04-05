@@ -86,6 +86,11 @@ if (!$setup_needed) {
         if (!$clientCol) {
             $pdo->exec("ALTER TABLE clients ADD COLUMN is_active TINYINT(1) DEFAULT 1");
         }
+
+        $tagCol = $pdo->query("SHOW COLUMNS FROM clients LIKE 'client_tags'")->fetch();
+        if (!$tagCol) {
+            $pdo->exec("ALTER TABLE clients ADD COLUMN client_tags VARCHAR(255) DEFAULT NULL");
+        }
     } catch (Throwable $e) {
         // Když se sloupec nepodaří přidat, aplikace poběží dál v původním režimu.
     }

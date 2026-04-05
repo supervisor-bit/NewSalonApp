@@ -79,6 +79,17 @@
             <input type="text" name="last_name" placeholder="Příjmení">
             <input type="tel" name="phone" placeholder="Telefonní číslo">
             <div style="margin-top:10px;">
+                <label style="display:block; font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-bottom:5px;">Interní štítky</label>
+                <input type="text" name="client_tags" id="new-client-tags" placeholder="např. blond, melír, citlivá pokožka">
+                <div class="quick-tag-row">
+                    <button type="button" class="quick-tag-btn" onclick="toggleClientTagInput('new-client-tags', 'Blond')">Blond</button>
+                    <button type="button" class="quick-tag-btn" onclick="toggleClientTagInput('new-client-tags', 'Melír')">Melír</button>
+                    <button type="button" class="quick-tag-btn" onclick="toggleClientTagInput('new-client-tags', 'Citlivá pokožka')">Citlivá</button>
+                    <button type="button" class="quick-tag-btn" onclick="toggleClientTagInput('new-client-tags', 'Šediny')">Šediny</button>
+                    <button type="button" class="quick-tag-btn" onclick="toggleClientTagInput('new-client-tags', 'Studený tón')">Studený tón</button>
+                </div>
+            </div>
+            <div style="margin-top:10px;">
                 <label style="display:block; font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-bottom:5px;">Interval návštěv (v týdnech)</label>
                 <input type="number" name="preferred_interval" placeholder="Např. 6" min="1" max="52">
             </div>
@@ -98,6 +109,17 @@
             <input type="text" name="first_name" id="edit-client-profile-first" placeholder="Jméno">
             <input type="text" name="last_name" id="edit-client-profile-last" placeholder="Příjmení">
             <input type="tel" name="phone" id="edit-client-profile-phone" placeholder="Telefonní číslo">
+            <div style="margin-top:10px;">
+                <label style="display:block; font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-bottom:5px;">Interní štítky</label>
+                <input type="text" name="client_tags" id="edit-client-profile-tags" placeholder="např. blond, melír, citlivá pokožka">
+                <div class="quick-tag-row">
+                    <button type="button" class="quick-tag-btn" onclick="toggleClientTagInput('edit-client-profile-tags', 'Blond')">Blond</button>
+                    <button type="button" class="quick-tag-btn" onclick="toggleClientTagInput('edit-client-profile-tags', 'Melír')">Melír</button>
+                    <button type="button" class="quick-tag-btn" onclick="toggleClientTagInput('edit-client-profile-tags', 'Citlivá pokožka')">Citlivá</button>
+                    <button type="button" class="quick-tag-btn" onclick="toggleClientTagInput('edit-client-profile-tags', 'Šediny')">Šediny</button>
+                    <button type="button" class="quick-tag-btn" onclick="toggleClientTagInput('edit-client-profile-tags', 'Studený tón')">Studený tón</button>
+                </div>
+            </div>
             <div style="margin-top:10px;">
                 <label style="display:block; font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-bottom:5px;">Interval návštěv (v týdnech)</label>
                 <input type="number" name="preferred_interval" id="edit-client-profile-interval" placeholder="Např. 6" min="1" max="52">
