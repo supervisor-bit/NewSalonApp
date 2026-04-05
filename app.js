@@ -244,6 +244,14 @@
         kalkulackaCheckout();
         showModalFlex('checkout-modal');
         lucide.createIcons();
+
+        setTimeout(() => {
+            const servicePriceInput = document.getElementById('checkout-service-price');
+            if (servicePriceInput) {
+                servicePriceInput.focus();
+                servicePriceInput.select();
+            }
+        }, 30);
     }
     function schovCheckout() { hideModal('checkout-modal'); }
 
