@@ -137,7 +137,7 @@ if ($source_id > 0) {
                 <i data-lucide="sparkles" style="width:16px;height:16px;"></i>
                 <?= $edit_id > 0 ? 'Upravuješ uloženou návštěvu' : 'Rychlý zápis návštěvy' ?>
             </div>
-            <div class="m-builder-intro-text">Namíchej misky, případně připiš krátkou poznámku a vše se uloží přímo do historie klientky.</div>
+            <div class="m-builder-intro-text">Namíchej misky, případně připiš krátkou poznámku a vše se uloží přímo do historie klienta.</div>
         </div>
         
         <div class="m-section-title">RECEPTURA (Misky s barvou)</div>
@@ -174,7 +174,7 @@ if ($source_id > 0) {
                 Rychlá poznámka k návštěvě
             </label>
             <textarea id="mobile-note" name="note" class="m-note-textarea" rows="3" placeholder="Např. příště nechat déle působit, citlivější pokožka, upravit poměr..."><?= htmlspecialchars($prefill_note) ?></textarea>
-            <div class="m-note-hint">Volitelné • poznámka se uloží přímo do historie klientky.</div>
+            <div class="m-note-hint">Volitelné • poznámka se uloží přímo do historie klienta.</div>
         </div>
 
         <div class="m-bottom-bar">

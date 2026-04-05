@@ -8,7 +8,7 @@ while ($row = $stmt->fetch(PDO::FETCH_NUM)) {
     $tables[] = $row[0];
 }
 
-$sql = "-- KARTA DATABAZE BACKUP\n";
+$sql = "-- AURA DATABAZE BACKUP\n";
 $sql .= "-- Datum: " . date('Y-m-d H:i:s') . "\n\n";
 
 $sql .= "SET FOREIGN_KEY_CHECKS=0;\n\n";
@@ -40,7 +40,7 @@ $sql .= "SET FOREIGN_KEY_CHECKS=1;\n";
 
 // Vynutit stažení jako soubor prohlížečem
 header('Content-Type: application/sql');
-header('Content-Disposition: attachment; filename="karta_zaloha_' . date('Y-m-d_H-i') . '.sql"');
+header('Content-Disposition: attachment; filename="aura_zaloha_' . date('Y-m-d_H-i') . '.sql"');
 header('Content-Length: ' . strlen($sql));
 header('Cache-Control: private, max-age=0, must-revalidate');
 header('Pragma: public');

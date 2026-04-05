@@ -1,6 +1,6 @@
 {
-  "name": "Mobilní Míchárna KARTA",
-  "short_name": "M-KARTA",
+  "name": "Aura Mobile",
+  "short_name": "Aura", 
   "description": "Mobilní míchárna pro kadeřnický salon",
   "start_url": "m-index.php",
   "display": "standalone",

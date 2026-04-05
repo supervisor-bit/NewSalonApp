@@ -1,8 +1,8 @@
 {
   "id": "./index.php",
-  "name": "Profi Kadeřnická KARTA",
-  "short_name": "KARTA",
-  "description": "Evidence klientek, historie návštěv a salonní míchárna",
+  "name": "Aura",
+  "short_name": "Aura",
+  "description": "Salonní přehled klientek, historie návštěv a míchárna", 
   "lang": "cs",
   "dir": "ltr",
   "start_url": "./index.php",
@@ -23,8 +23,8 @@
   ],
   "shortcuts": [
     {
-      "name": "Klientky",
-      "short_name": "Klientky",
+      "name": "Klienti",
+      "short_name": "Klienti",
       "url": "./index.php"
     },
     {

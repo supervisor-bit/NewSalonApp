@@ -57,7 +57,7 @@
         deferredInstallPrompt = null;
 
         if (choice && choice.outcome === 'accepted') {
-            updateDesktopInstallUi('Instalace byla potvrzena. KARTA se objeví jako samostatná aplikace.');
+            updateDesktopInstallUi('Instalace byla potvrzena. Aura se objeví jako samostatná aplikace.');
         } else {
             updateDesktopInstallUi('Instalaci můžete kdykoli spustit později z menu prohlížeče.');
         }
@@ -1260,7 +1260,7 @@
 
             const data = await response.json();
             if (!response.ok || !data.success) {
-                throw new Error(data.error || 'Oblíbenou klientku se nepodařilo upravit.');
+                throw new Error(data.error || 'Oblíbeného klienta se nepodařilo upravit.');
             }
 
             window.location.href = 'index.php?client_id=' + clientId;
@@ -1268,7 +1268,7 @@
             console.error(err);
             await openActionDialog({
                 title: 'Změna se nepodařila',
-                message: err && err.message ? err.message : 'Oblíbenou klientku se nepodařilo upravit.',
+                message: err && err.message ? err.message : 'Oblíbeného klienta se nepodařilo upravit.',
                 confirmText: 'Rozumím',
                 variant: 'danger',
                 showCancel: false
@@ -1280,8 +1280,8 @@
         const confirmed = await openActionDialog({
             title: isCurrentlyActive ? 'Přesunout do neaktivních?' : 'Vrátit do hlavního seznamu?',
             message: isCurrentlyActive
-                ? 'Klientka se skryje z běžného seznamu, ale zůstane dostupná ve filtru Neaktivní.'
-                : 'Klientka se znovu ukáže v hlavním seznamu a bude běžně dostupná.',
+                ? 'Klient se skryje z běžného seznamu, ale zůstane dostupný ve filtru Neaktivní.'
+                : 'Klient se znovu ukáže v hlavním seznamu a bude běžně dostupný.',
             confirmText: isCurrentlyActive ? 'Přesunout' : 'Vrátit zpět',
             cancelText: 'Zrušit',
             variant: isCurrentlyActive ? 'danger' : 'primary',
@@ -1322,7 +1322,7 @@
             console.error(err);
             await openActionDialog({
                 title: 'Přesun se nepodařil',
-                message: err && err.message ? err.message : 'Změna stavu klientky se nepodařila.',
+                message: err && err.message ? err.message : 'Změna stavu klienta se nepodařila.',
                 confirmText: 'Rozumím',
                 variant: 'danger',
                 showCancel: false

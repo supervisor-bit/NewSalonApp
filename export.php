@@ -118,7 +118,7 @@ if ($range === 'year_monthly') {
 <div class="page">
     <div class="header">
         <div>
-            <div class="sub">Kadeřnická Karta &bull; exportováno <?= date('d.m.Y H:i') ?></div>
+            <div class="sub">Aura &bull; exportováno <?= date('d.m.Y H:i') ?></div>
             <h1><?= htmlspecialchars($title) ?></h1>
         </div>
         <div class="total-badge">
@@ -181,7 +181,7 @@ if ($range === 'year_monthly') {
         </tfoot>
     </table>
 
-    <div class="footer">Profi Kadeřnická Karta &bull; <?= $year ?></div>
+    <div class="footer">Aura &bull; <?= $year ?></div>
 </div>
 </body>
 </html>

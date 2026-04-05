@@ -39,7 +39,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'clients_pulse') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KARTA - Mobilní Míchárna</title>
+    <title>Aura - Mobilní míchárna</title>
     <link rel="stylesheet" href="m-style.css">
     <link rel="manifest" href="manifest-m.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -59,11 +59,11 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'clients_pulse') {
 </head>
 <body>
     <header class="m-header">
-        <h1>KARTA <span style="font-weight:300;">MOBILE</span></h1>
+        <h1>Aura <span style="font-weight:300;">MOBILE</span></h1>
     </header>
 
     <div class="m-search-wrap">
-        <input type="text" id="m-search" class="m-search-input" placeholder="Hledat klientku (např. 'Nováková')...">
+        <input type="text" id="m-search" class="m-search-input" placeholder="Hledat klienta (např. 'Novák')...">
     </div>
 
     <ul class="m-client-list" id="client-list" data-snapshot="<?= htmlspecialchars($clients_snapshot, ENT_QUOTES, 'UTF-8') ?>">
@@ -80,7 +80,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'clients_pulse') {
                     <div class="m-client-meta">
                         <div class="m-client-date">
                             <i data-lucide="clock" style="width:12px;height:12px;vertical-align:middle;"></i>
-                            <?= $c['last_visit_date'] ? date('d.m.Y', strtotime($c['last_visit_date'])) : 'Nová klientka' ?>
+                            <?= $c['last_visit_date'] ? date('d.m.Y', strtotime($c['last_visit_date'])) : 'Nový klient' ?>
                         </div>
                     </div>
                 </div>
@@ -92,7 +92,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'clients_pulse') {
                 </div>
             </a>
         <?php endforeach; ?>
-        <div id="no-results" style="display:none; text-align:center; padding:30px; color:#94a3b8; font-weight:600;">Žádná klientka nenalezena.</div>
+        <div id="no-results" style="display:none; text-align:center; padding:30px; color:#94a3b8; font-weight:600;">Žádný klient nenalezen.</div>
     </ul>
 
     <?php if (isset($_GET['success'])): ?>

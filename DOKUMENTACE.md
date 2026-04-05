@@ -1,6 +1,6 @@
-# Profi Kadeřnická Karta – Dokumentace & Workflow
+# Aura – Dokumentace & Workflow
 
-Tento systém je moderní webová aplikace navržená pro správu kadeřnického salonu, která kombinuje evidenci klientů, chytrou míchárnu receptur a finanční přehled s hlídačem skladu.
+Aura je moderní webová aplikace navržená pro správu kadeřnického salonu, která kombinuje evidenci klientů, chytrou míchárnu receptur a finanční přehled s hlídačem skladu.
 
 ---
 

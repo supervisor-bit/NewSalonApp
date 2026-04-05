@@ -31,18 +31,18 @@ if ($id > 0) {
         }
 
         $_SESSION['msg'] = $newState
-            ? 'Klientka byla připnuta mezi oblíbené.'
-            : 'Klientka byla odepnuta z oblíbených.';
+            ? 'Klient byl připnut mezi oblíbené.'
+            : 'Klient byl odepnut z oblíbených.';
     } catch (Throwable $e) {
         if ($isAjax) {
             if (!headers_sent()) {
                 http_response_code(500);
             }
-            echo json_encode(['success' => false, 'error' => 'Server nedokázal změnit oblíbenou klientku.']);
+            echo json_encode(['success' => false, 'error' => 'Server nedokázal změnit oblíbeného klienta.']);
             exit;
         }
 
-        $_SESSION['msg'] = 'Změna oblíbené klientky se nepodařila.';
+        $_SESSION['msg'] = 'Změna oblíbeného klienta se nepodařila.';
     }
 }
 

@@ -12,7 +12,7 @@ echo "<!DOCTYPE html>
 <html lang='cs'>
 <head>
     <meta charset='UTF-8'>
-    <title>Instalace | Profi Kadeřnická Karta</title>
+    <title>Instalace | Aura</title>
     <style>
         body { font-family: 'Inter', sans-serif; padding: 40px; line-height: 1.6; color: #1e293b; background: #f8fafc; }
         .card { background: #white; border-radius: 12px; padding: 30px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; background: #fff; }
@@ -32,7 +32,7 @@ echo "<h1>🛠️ Instalační skript salonu</h1>";
 
 if (!isset($_GET['run'])) {
     echo "<div class='warning'>⚠️ VAROVÁNÍ: Spuštění tohoto skriptu SMAŽE veškerá současná data a nastaví čistou databázi!</div>";
-    echo "<p>Chcete-li pokračovat s novou instalací a importem dat (včetně demo klientky), klikněte níže:</p>";
+    echo "<p>Chcete-li pokračovat s novou instalací a importem dat (včetně demo záznamu klienta), klikněte níže:</p>";
     echo "<a href='?run=1' class='btn'>SPUSTIT INSTALACI A IMPORT</a>";
     echo "</div></body></html>";
     exit;
@@ -98,7 +98,7 @@ try {
         $stmt = $pdo->prepare("INSERT INTO formulas (visit_id, material_id, amount_g, bowl_name) VALUES (?, ?, ?, ?)");
         $stmt->execute([$visit_id, $mat['id'], 30, 'Miska 1']);
     }
-    echo "<div class='success'>✅ Demo klientka 'Jana Ukázková' byla vytvořena.</div>";
+    echo "<div class='success'>✅ Demo záznam klienta 'Jana Ukázková' byl vytvořen.</div>";
 
     echo "<h3>🎉 Vše je připraveno!</h3>";
     echo "<p>Nyní se můžete se přihlásit a začít pracovat.</p>";

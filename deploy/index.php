@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profi Kadeřnická Karta</title>
+    <title>Aura | Salonní přehled</title>
     <link rel="stylesheet" href="style.css">
     
     <!-- PWA Support -->
@@ -41,11 +41,11 @@
 
     <!-- NAVIGATION RAIL -->
     <nav class="nav-rail">
-        <a href="#" class="rail-item rail-btn-plus" onclick="ukazNovaKlientka()" title="Nová klientka">
+        <a href="#" class="rail-item rail-btn-plus" onclick="ukazNovaKlientka()" title="Nový klient">
             <i data-lucide="plus" style="width:24px; height:24px;"></i>
         </a>
         <div style="border-top:1px solid rgba(255,255,255,0.1); width:32px; margin:5px 0;"></div>
-        <a href="index.php" class="rail-item <?= (!$show_stats && !$show_settings && !$show_accounting) ? 'active' : '' ?>" id="nav-clients" title="Klientky">
+        <a href="index.php" class="rail-item <?= (!$show_stats && !$show_settings && !$show_accounting) ? 'active' : '' ?>" id="nav-clients" title="Klienti">
             <i data-lucide="users" style="width:24px; height:24px;"></i>
         </a>
         <div style="margin-top:auto;">
@@ -118,12 +118,12 @@
         }
     ?>
     <div class="sidebar-header">
-        <h2>Seznam klientek</h2>
+        <h2>Seznam klientů</h2>
         <div class="search-container">
             <i data-lucide="search"></i>
-            <input type="text" id="hledani" class="search-bar" placeholder="Hledat klientku nebo telefon..." oninput="hledejKlientku()">
+            <input type="text" id="hledani" class="search-bar" placeholder="Hledat klienta nebo telefon..." oninput="hledejKlientku()">
         </div>
-        <div class="sidebar-filters" aria-label="Skupiny klientek">
+        <div class="sidebar-filters" aria-label="Skupiny klientů">
             <button type="button" class="sidebar-filter-chip active" onclick="setClientGroupFilter('all', this)">Vše <span><?= $client_group_counts['all'] ?></span></button>
             <button type="button" class="sidebar-filter-chip" onclick="setClientGroupFilter('active', this)">Aktivní <span><?= $client_group_counts['active'] ?></span></button>
             <button type="button" class="sidebar-filter-chip" onclick="setClientGroupFilter('followup', this)">Oslovit <span><?= $client_group_counts['followup'] ?></span></button>
@@ -138,7 +138,7 @@
                 $client_is_active = isset($c['is_active']) ? (int)$c['is_active'] : 1;
                 $client_is_favorite = isset($c['is_favorite']) ? (int)$c['is_favorite'] : 0;
                 $status_color = '#10b981';
-                $reason = 'Aktivní klientka';
+                $reason = 'Aktivní klient';
                 $client_group = 'active';
                 $followup_detail = '';
 
@@ -148,10 +148,10 @@
 
                 if (!$client_is_active) {
                     $status_color = '#94a3b8';
-                    $reason = 'Neaktivní klientka';
+                    $reason = 'Neaktivní klient';
                 } elseif (!$last_v) {
                     $status_color = '#94a3b8';
-                    $reason = 'Nová klientka bez historie';
+                    $reason = 'Nový klient bez historie';
                     $client_group = 'new';
                 } else {
                     $days_since = (time() - strtotime($last_v)) / 86400;
@@ -177,7 +177,7 @@
                     <div class="client-name-line">
                         <h3><?= htmlspecialchars($c['first_name'] . ' ' . $c['last_name']) ?></h3>
                         <?php if ($client_is_favorite): ?>
-                            <span class="client-favorite-star" title="Oblíbená klientka">
+                            <span class="client-favorite-star" title="Oblíbený klient">
                                 <i data-lucide="star" style="width:12px; height:12px; fill:currentColor;"></i>
                             </span>
                         <?php endif; ?>
@@ -548,7 +548,7 @@
                             </h3>
                             <div style="display:flex; flex-direction:column; gap:10px;">
                                 <?php if(empty($lost_clients)): ?>
-                                    <div style="font-size:12px; color:#be123c; opacity:0.7;">Všechny klientky se vrací!</div>
+                                    <div style="font-size:12px; color:#be123c; opacity:0.7;">Všichni klienti se vrací!</div>
                                 <?php else: foreach(array_slice($lost_clients, 0, 3) as $lc): ?>
                                     <a href="index.php?client_id=<?= $lc['id'] ?>" style="text-decoration:none; background:#fff; padding:10px; border-radius:12px; display:flex; justify-content:space-between; align-items:center; border:1px solid #fecaca;">
                                         <span style="font-weight:700; font-size:12px; color:#334155;"><?= htmlspecialchars($lc['first_name'] . ' ' . $lc['last_name']) ?></span>
@@ -634,7 +634,7 @@
                             <i data-lucide="shield-check" style="width:20px;height:20px;color:#10b981;"></i> Zabezpečení a Zálohy
                         </span>
                         <p style="color:#64748b; font-size:13px; line-height:1.5; margin-bottom:15px;">
-                            Pro váš maximální klid si můžete kdykoliv stáhnout kompletní kopii celé databáze (klientky, návštěvy, použité barvy). V případě potřeby z ní dokážeme systém obnovit přesně do tohoto stavu.
+                            Pro váš maximální klid si můžete kdykoliv stáhnout kompletní kopii celé databáze (klienti, návštěvy, použité barvy). V případě potřeby z ní dokážeme systém obnovit přesně do tohoto stavu.
                         </p>
                         <a href="backup_db.php" class="btn-ulozit" style="background:#0f172a; display:inline-flex; align-items:center; justify-content:center; gap:8px; text-decoration:none; padding:12px 20px; width:100%; border-radius:10px;">
                             <i data-lucide="download-cloud" style="width:18px;height:18px;"></i>
@@ -802,15 +802,15 @@
             <div id="set-view-about" class="acc-view" style="display:none;">
                 <div style="display:grid; grid-template-columns: 1.15fr 0.85fr; gap:24px; align-items:start;">
                     <div class="sekce" style="margin-bottom:0;">
-                        <span class="sekce-nadpis">O aplikaci KARTA</span>
-                        <h3 style="margin:0 0 10px 0; font-family:'Outfit'; font-size:24px; color:#0f172a;">KARTA – salonní pomocník pro každodenní provoz</h3>
+                        <span class="sekce-nadpis">O aplikaci Aura</span>
+                        <h3 style="margin:0 0 10px 0; font-family:'Outfit'; font-size:24px; color:#0f172a;">Aura – salonní pomocník pro každodenní provoz</h3>
                         <p style="color:#475569; font-size:14px; line-height:1.7; margin-bottom:18px;">
                             Aplikace slouží pro vedení klientských karet, historii návštěv, receptur, produktů na doma, nákupního seznamu a rychlé práce z mobilu přímo u míchacího pultu.
                         </p>
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                             <div style="padding:14px 16px; border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0;">
                                 <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">Desktop</div>
-                                <div style="font-size:14px; font-weight:700; color:#334155;">Klientky, historie, statistiky, nákup</div>
+                                <div style="font-size:14px; font-weight:700; color:#334155;">Klienti, historie, statistiky, nákup</div>
                             </div>
                             <div style="padding:14px 16px; border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0;">
                                 <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">Mobil</div>
@@ -831,7 +831,7 @@
                         <div class="sekce" style="margin-bottom:0;">
                             <span class="sekce-nadpis">Co aplikace umí</span>
                             <ul style="margin:0; padding-left:18px; color:#475569; line-height:1.8; font-size:14px;">
-                                <li>evidence klientek a jejich historie</li>
+                                <li>evidence klientů a jejich historie</li>
                                 <li>ukládání receptur v miskách včetně poměru</li>
                                 <li>produkty na doma a vyúčtování návštěv</li>
                                 <li>rychlé opakování minulé receptury</li>
@@ -849,7 +849,7 @@
                         <div class="sekce pwa-install-card" style="margin-bottom:0;">
                             <span class="sekce-nadpis">Desktop aplikace</span>
                             <p style="margin:0 0 12px 0; color:#475569; font-size:14px; line-height:1.7;">
-                                KARTU si můžete na počítači nainstalovat jako samostatnou aplikaci do Docku nebo nabídky Start a otevírat ji ve vlastním okně.
+                                Auru si můžete na počítači nainstalovat jako samostatnou aplikaci do Docku nebo nabídky Start a otevírat ji ve vlastním okně.
                             </p>
                             <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
                                 <button type="button" id="install-desktop-app-btn" class="btn-ulozit btn-install-app" onclick="installDesktopApp()" style="display:none; margin-top:0; width:auto;">
@@ -1004,7 +1004,7 @@
                                 <i data-lucide="sparkles"></i>
                             </div>
                             <h3>Zatím žádná historie</h3>
-                            <p>Tato klientka u nás ještě nebyla. Klikněte na tlačítko níže a zadejte její úplně první návštěvu!</p>
+                            <p>Tento klient u nás ještě nemá žádnou návštěvu. Klikněte na tlačítko níže a zadejte první návštěvu.</p>
                             <button type="button" class="btn-primary" onclick="ukazNovaNavsteva()">+ Zadat první návštěvu</button>
                         </div>
                     <?php  else: ?>
@@ -1297,7 +1297,7 @@
                             <i data-lucide="shopping-bag" style="width:18px;height:18px;color:var(--primary);"></i> Produkty na doma
                         </span>
                         <div id="products-wrapper-new"></div>
-                        <button type="button" class="btn-outline" onclick="pridatProduktRow('products-wrapper-new')">+ PŘIDAT PRODUKT PRO KLIENTKU</button>
+                        <button type="button" class="btn-outline" onclick="pridatProduktRow('products-wrapper-new')">+ PŘIDAT PRODUKT PRO KLIENTA</button>
                     </div>
                     
                     <div style="display:flex; gap:12px; align-items:center; margin-top:24px; flex-wrap:wrap;">
@@ -1357,7 +1357,7 @@
                             <i data-lucide="shopping-bag" style="width:18px;height:18px;color:var(--primary);"></i> Produkty na doma
                         </span>
                         <div id="products-wrapper-edit"></div>
-                        <button type="button" class="btn-outline" onclick="pridatProduktRow('products-wrapper-edit')">+ PŘIDAT PRODUKT PRO KLIENTKU</button>
+                        <button type="button" class="btn-outline" onclick="pridatProduktRow('products-wrapper-edit')">+ PŘIDAT PRODUKT PRO KLIENTA</button>
                     </div>
                     
                     <div style="display:flex; gap:12px; align-items:center; margin-top:24px; flex-wrap:wrap;">
@@ -1375,8 +1375,8 @@
                 <div style="background:#f1f5f9; width:80px; height:80px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin-bottom:20px;">
                     <i data-lucide="users" style="width:40px; height:40px; color:#cbd5e1;"></i>
                 </div>
-                <h2 style="font-family:'Outfit'; color:#334155; margin-bottom:8px;">Karta Klienta</h2>
-                <p style="font-size:14px; max-width:300px; line-height:1.6;">Vyberte klientku v levém seznamu pro zobrazení historie a receptur, nebo přidejte zcela novou přes tlačítko + v menu.</p>
+                <h2 style="font-family:'Outfit'; color:#334155; margin-bottom:8px;">Karta klienta</h2>
+                <p style="font-size:14px; max-width:300px; line-height:1.6;">Vyberte klienta v levém seznamu pro zobrazení historie a receptur, nebo přidejte nového přes tlačítko + v menu.</p>
             </div>
         <?php  endif; // Konec if ($active_client) ?>
     </div> <!-- Koncový tag client-karta-box -->

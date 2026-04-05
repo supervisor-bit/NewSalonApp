@@ -31,18 +31,18 @@ if ($id > 0) {
         }
 
         $_SESSION['msg'] = $newState
-            ? 'Klientka byla vrácena do hlavního seznamu.'
-            : 'Klientka byla přesunuta mezi neaktivní.';
+            ? 'Klient byl vrácen do hlavního seznamu.'
+            : 'Klient byl přesunut mezi neaktivní.';
     } catch (Throwable $e) {
         if ($isAjax) {
             if (!headers_sent()) {
                 http_response_code(500);
             }
-            echo json_encode(['success' => false, 'error' => 'Server nedokázal změnit stav klientky.']);
+            echo json_encode(['success' => false, 'error' => 'Server nedokázal změnit stav klienta.']);
             exit;
         }
 
-        $_SESSION['msg'] = 'Změna stavu klientky se nepodařila.';
+        $_SESSION['msg'] = 'Změna stavu klienta se nepodařila.';
     }
 }
 

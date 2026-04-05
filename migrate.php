@@ -20,27 +20,27 @@ try {
 
     $clientColumns = $pdo->query("DESCRIBE clients")->fetchAll(PDO::FETCH_COLUMN);
     if (!in_array('is_active', $clientColumns)) {
-        echo "Sloupec 'is_active' u klientek chybí. Přidávám ho...\n";
+        echo "Sloupec 'is_active' u klientů chybí. Přidávám ho...\n";
         $pdo->exec("ALTER TABLE clients ADD COLUMN is_active TINYINT(1) DEFAULT 1");
-        echo "Sloupec pro neaktivní klientky byl úspěšně přidán.\n";
+        echo "Sloupec pro neaktivní klienty byl úspěšně přidán.\n";
     } else {
-        echo "Sloupec 'is_active' u klientek už existuje.\n";
+        echo "Sloupec 'is_active' u klientů už existuje.\n";
     }
 
     if (!in_array('client_tags', $clientColumns)) {
-        echo "Sloupec 'client_tags' u klientek chybí. Přidávám ho...\n";
+        echo "Sloupec 'client_tags' u klientů chybí. Přidávám ho...\n";
         $pdo->exec("ALTER TABLE clients ADD COLUMN client_tags VARCHAR(255) DEFAULT NULL");
         echo "Sloupec pro interní štítky byl úspěšně přidán.\n";
     } else {
-        echo "Sloupec 'client_tags' u klientek už existuje.\n";
+        echo "Sloupec 'client_tags' u klientů už existuje.\n";
     }
 
     if (!in_array('is_favorite', $clientColumns)) {
-        echo "Sloupec 'is_favorite' u klientek chybí. Přidávám ho...\n";
+        echo "Sloupec 'is_favorite' u klientů chybí. Přidávám ho...\n";
         $pdo->exec("ALTER TABLE clients ADD COLUMN is_favorite TINYINT(1) DEFAULT 0");
-        echo "Sloupec pro oblíbené klientky byl úspěšně přidán.\n";
+        echo "Sloupec pro oblíbené klienty byl úspěšně přidán.\n";
     } else {
-        echo "Sloupec 'is_favorite' u klientek už existuje.\n";
+        echo "Sloupec 'is_favorite' u klientů už existuje.\n";
     }
     
     echo "Povedlo se! Aplikace by měla být zase funkční.\n";

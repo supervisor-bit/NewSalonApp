@@ -77,7 +77,7 @@
 <!-- MODÁLY -->
 <div id="nova-klientka-modal" class="modal">
     <div class="modal-content">
-        <h3>Nová klientka</h3>
+        <h3>Nový klient</h3>
         <form action="save_client.php" method="POST" class="modal-form">
             <input type="text" name="first_name" placeholder="Jméno">
             <input type="text" name="last_name" placeholder="Příjmení">
@@ -138,7 +138,7 @@
 
 <div id="edit-diagnostics-modal" class="modal">
     <div class="modal-content">
-        <h3>Vlasová diagnostika klientky</h3>
+        <h3>Vlasová diagnostika klienta</h3>
         <form action="update_diagnostics.php" method="POST">
             <input type="hidden" name="client_id" value="<?= $active_client['id'] ?? 0 ?>">
             <span class="diag-label">Struktura a stav vlasu:</span>
@@ -254,7 +254,7 @@
                         </div>
                         <div style="border-top:1px dashed #cbd5e1; margin:4px 0;"></div>
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <label style="color:#64748b; font-size:13px;">Hotovost od klientky:</label>
+                            <label style="color:#64748b; font-size:13px;">Hotovost od klienta:</label>
                             <input type="number" id="checkout-given" placeholder="V Kč" style="width:130px; text-align:right;" oninput="kalkulackaCheckout()">
                         </div>
                         <div style="display:flex; justify-content:space-between; align-items:center;">

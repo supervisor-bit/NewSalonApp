@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $stmt = $pdo->prepare("UPDATE clients SET first_name = ?, last_name = ?, phone = ?, preferred_interval = ?, client_tags = ? WHERE id = ?");
             $stmt->execute([$first_name, $last_name, $phone, !empty($_POST['preferred_interval']) ? (int)$_POST['preferred_interval'] : null, $client_tags ?: null, $client_id]);
-            $_SESSION['msg'] = "Profil klientky byl úspěšně upraven.";
+            $_SESSION['msg'] = "Profil klienta byl úspěšně upraven.";
         } catch(Exception $e) {
             $_SESSION['msg'] = "Chyba při aktualizaci klienta: " . $e->getMessage();
         }

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'karta-static-v2';
+const CACHE_NAME = 'aura-static-v3';
 const STATIC_ASSETS = [
     './style.css',
     './m-style.css',

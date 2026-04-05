@@ -10,7 +10,7 @@ if (isset($_GET['client_id'])) {
     try {
         $stmt = $pdo->prepare("DELETE FROM clients WHERE id = ?");
         $stmt->execute([$client_id]);
-        $_SESSION['msg'] = "Klientka a veškerá její historie byla úspěšně smazána.";
+        $_SESSION['msg'] = "Klient a veškerá jeho historie byla úspěšně smazána.";
     } catch(Exception $e) {
         $_SESSION['msg'] = "Chyba při mazání: " . $e->getMessage();
     }

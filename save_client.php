@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare("INSERT INTO clients (first_name, last_name, phone, preferred_interval, client_tags) VALUES (?, ?, ?, ?, ?)");
             $stmt->execute([$first_name, $last_name, $phone, !empty($_POST['preferred_interval']) ? (int)$_POST['preferred_interval'] : null, $client_tags ?: null]);
             $client_id = $pdo->lastInsertId();
-            $_SESSION['msg'] = "Klientka byla úspěšně vytvořena. Nezapomeňte u ní vyplnit vlasovou diagnostiku!";
+            $_SESSION['msg'] = "Klient byl úspěšně vytvořen. Nezapomeňte doplnit vlasovou diagnostiku!";
             header("Location: index.php?client_id=" . $client_id);
             exit;
         } catch(Exception $e) {

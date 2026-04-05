@@ -187,7 +187,7 @@ foreach($raw_past as $rp) {
 
     <header class="m-header">
         <a href="m-index.php"><i data-lucide="arrow-left"></i></a>
-        <div style="font-size:16px; font-weight:800; font-family:'Outfit';">HISTORIE KLIENTKY</div>
+        <div style="font-size:16px; font-weight:800; font-family:'Outfit';">HISTORIE KLIENTA</div>
         <div style="width:24px;"></div>
     </header>
 
