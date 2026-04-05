@@ -222,10 +222,20 @@
         }
     }
     
-    function ukazNovaNavsteva() { 
-        skryjVsechnyPohledy(); 
+    function resetNovaNavstevaForm() {
+        const form = document.getElementById('new-visit-box');
+        if(form) form.reset();
+
         let container = document.getElementById('bowls-wrapper-new');
         if(container) container.innerHTML = '';
+
+        const prodWrapperNew = document.getElementById('products-wrapper-new');
+        if(prodWrapperNew) prodWrapperNew.innerHTML = '';
+    }
+
+    function ukazNovaNavsteva() { 
+        skryjVsechnyPohledy(); 
+        resetNovaNavstevaForm();
         pridatMisku('bowls-wrapper-new', 'Miska 1 (např. Odrosty)');
         
         const kartaBox = document.getElementById('client-karta-box');
@@ -704,11 +714,7 @@
 
     function pouzijSablonu(formulasJson, servicesJson) {
         skryjVsechnyPohledy();
-        let container = document.getElementById('bowls-wrapper-new');
-        if(container) container.innerHTML = '';
-        
-        const prodWrapperNew = document.getElementById('products-wrapper-new');
-        if(prodWrapperNew) prodWrapperNew.innerHTML = ''; 
+        resetNovaNavstevaForm();
         
         // Populate Formulas
         let dict = JSON.parse(formulasJson || '{}');

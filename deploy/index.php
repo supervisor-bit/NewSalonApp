@@ -812,6 +812,13 @@
                 <?php  endif; ?>
                 
                 <div style="flex:1;"></div>
+
+                <?php  if (!empty($visits)): ?>
+                    <button class="chip-btn chip-action" onclick='pouzijSablonu(<?= htmlspecialchars(json_encode($visits[0]["formulas_json"] ?? "{}"), ENT_QUOTES, "UTF-8") ?>, <?= htmlspecialchars(json_encode($visits[0]["services_json"] ?? "{}"), ENT_QUOTES, "UTF-8") ?>)'>
+                        <i data-lucide="copy" style="width:14px; height:14px;"></i>
+                        Podle poslední receptury
+                    </button>
+                <?php  endif; ?>
                 
                 <button class="chip-btn chip-purple" onclick="ukazNovaNavsteva()">
                     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -997,7 +1004,7 @@
 
                                 <!-- VISIT FOOTER ACTIONS -->
                                 <div class="visit-card-actions">
-                                    <a href="#" onclick='pouzijSablonu(<?= htmlspecialchars(json_encode($v['formulas_json'] ?? "{}"), ENT_QUOTES, "UTF-8") ?>, <?= htmlspecialchars(json_encode($v['services_json'] ?? "{}"), ENT_QUOTES, "UTF-8") ?>)' class="chip-btn chip-purple" title="Použije barvy a služby z této návštěvy pro novou záznam">
+                                    <a href="#" onclick='pouzijSablonu(<?= htmlspecialchars(json_encode($v['formulas_json'] ?? "{}"), ENT_QUOTES, "UTF-8") ?>, <?= htmlspecialchars(json_encode($v['services_json'] ?? "{}"), ENT_QUOTES, "UTF-8") ?>)' class="chip-btn chip-purple" title="Použije recepturu a služby z této návštěvy pro nový záznam">
                                         <i data-lucide="copy" style="width:12px; height:12px;"></i>
                                         Zopakovat recepturu
                                     </a>
