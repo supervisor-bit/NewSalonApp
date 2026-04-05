@@ -136,12 +136,14 @@
             <?php  
                 $initials = mb_strtoupper(mb_substr($c['first_name'], 0, 1) . mb_substr($c['last_name'], 0, 1));
                 $client_is_active = isset($c['is_active']) ? (int)$c['is_active'] : 1;
+                $client_is_favorite = isset($c['is_favorite']) ? (int)$c['is_favorite'] : 0;
                 $status_color = '#10b981';
                 $reason = 'Aktivní klientka';
                 $client_group = 'active';
                 $followup_detail = '';
 
                 $last_v = $c['last_visit_date'] ?? null;
+                $last_visit_label = $last_v ? 'Naposledy ' . date('d. m. Y', strtotime($last_v)) : 'Zatím bez návštěvy';
                 $pref_i = (int)($c['preferred_interval'] ?: 8);
 
                 if (!$client_is_active) {
@@ -172,10 +174,21 @@
             <div onclick="window.location.href='index.php?client_id=<?=$c['id']?>'" class="client-row <?= ($c['id'] == $client_id) ? 'active' : '' ?> <?= !$client_is_active ? 'is-inactive' : '' ?>" data-phone="<?= htmlspecialchars((string)($c['phone'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" data-group="<?= htmlspecialchars($client_group, ENT_QUOTES, 'UTF-8') ?>" data-is-active="<?= $client_is_active ?>" style="<?= !$client_is_active ? 'display:none;' : '' ?>">
                 <div class="avatar"><?= $initials ?></div>
                 <div class="client-info">
-                    <h3><?= htmlspecialchars($c['first_name'] . ' ' . $c['last_name']) ?></h3>
+                    <div class="client-name-line">
+                        <h3><?= htmlspecialchars($c['first_name'] . ' ' . $c['last_name']) ?></h3>
+                        <?php if ($client_is_favorite): ?>
+                            <span class="client-favorite-star" title="Oblíbená klientka">
+                                <i data-lucide="star" style="width:12px; height:12px; fill:currentColor;"></i>
+                            </span>
+                        <?php endif; ?>
+                    </div>
                     <p>
                         <i data-lucide="phone" style="width:10px; height:10px; opacity:0.5;"></i>
                         <?= htmlspecialchars($c['phone'] ?: 'Bez tel.') ?>
+                    </p>
+                    <p class="client-secondary-line">
+                        <i data-lucide="calendar-days" style="width:10px; height:10px; opacity:0.5;"></i>
+                        <?= htmlspecialchars($last_visit_label) ?>
                         <?php if ($followup_detail !== ''): ?>
                             <span class="client-followup-badge" title="<?= htmlspecialchars($reason) ?>"><?= htmlspecialchars($followup_detail) ?></span>
                         <?php endif; ?>
@@ -184,7 +197,7 @@
                 <span title="Stav retence: <?= $reason ?>" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:<?= $status_color ?>; box-shadow: 0 0 5px <?= $status_color ?>44; flex-shrink:0; margin-right: 5px;"></span>
                 <!-- KEBAB MENU TLAČÍTKO -->
                 <div onclick="event.preventDefault(); event.stopPropagation();">
-                    <button class="btn-menu" type="button" onclick='toggleMenu(event, <?= $c['id'] ?>, <?= json_encode($c['first_name']) ?>, <?= json_encode($c['last_name']) ?>, <?= json_encode($c['phone']) ?>, <?= (int)($c['preferred_interval'] ?? 0) ?>, <?= json_encode($c['client_tags'] ?? '') ?>, <?= (int)($c['is_active'] ?? 1) ?>)'>⋮</button>
+                    <button class="btn-menu" type="button" onclick='toggleMenu(event, <?= $c['id'] ?>, <?= json_encode($c['first_name']) ?>, <?= json_encode($c['last_name']) ?>, <?= json_encode($c['phone']) ?>, <?= (int)($c['preferred_interval'] ?? 0) ?>, <?= json_encode($c['client_tags'] ?? '') ?>, <?= (int)($c['is_favorite'] ?? 0) ?>, <?= (int)($c['is_active'] ?? 1) ?>)'>⋮</button>
                 </div>
             </div>
         <?php  endforeach; ?>

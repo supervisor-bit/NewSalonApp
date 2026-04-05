@@ -1180,6 +1180,35 @@
         .catch(console.error);
     }
 
+    async function toggleFavoriteClient(clientId, isCurrentlyFavorite) {
+        try {
+            const formData = new FormData();
+            formData.append('client_id', String(clientId));
+            formData.append('csrf_token', getCsrfToken());
+
+            const response = await fetch('toggle_favorite_client.php?ajax=1', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Oblíbenou klientku se nepodařilo upravit.');
+            }
+
+            window.location.href = 'index.php?client_id=' + clientId;
+        } catch (err) {
+            console.error(err);
+            await openActionDialog({
+                title: 'Změna se nepodařila',
+                message: err && err.message ? err.message : 'Oblíbenou klientku se nepodařilo upravit.',
+                confirmText: 'Rozumím',
+                variant: 'danger',
+                showCancel: false
+            });
+        }
+    }
+
     async function toggleClientAjax(clientId, isCurrentlyActive) {
         const confirmed = await openActionDialog({
             title: isCurrentlyActive ? 'Přesunout do neaktivních?' : 'Vrátit do hlavního seznamu?',
@@ -1236,7 +1265,7 @@
 
     // DROPDOWN MENU - GLOBÁLNÍ
     let activeDropdownId = null;
-    function toggleMenu(event, clientId, cFirst, cLast, cPhone, cInterval, cTags, cIsActive) {
+    function toggleMenu(event, clientId, cFirst, cLast, cPhone, cInterval, cTags, cIsFavorite, cIsActive) {
         event.preventDefault(); event.stopPropagation();
         let menu = document.getElementById('global-dropdown');
         if (activeDropdownId === clientId && menu.style.display === 'block') {
@@ -1253,6 +1282,17 @@
             e.preventDefault(); e.stopPropagation(); menu.style.display = 'none'; 
             ukazUpravuProfilu(e, clientId, cFirst, cLast, cPhone, cInterval, cTags); 
         };
+
+        const favoriteLink = document.getElementById('menu-global-toggle-favorite');
+        if (favoriteLink) {
+            favoriteLink.innerHTML = cIsFavorite
+                ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 5px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>Odepnout z oblíbených'
+                : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 5px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>Připnout nahoru';
+            favoriteLink.onclick = function(e) {
+                e.preventDefault(); e.stopPropagation(); menu.style.display = 'none';
+                toggleFavoriteClient(clientId, !!cIsFavorite);
+            };
+        }
 
         const toggleLink = document.getElementById('menu-global-toggle-status');
         if (toggleLink) {

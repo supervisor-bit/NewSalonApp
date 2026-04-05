@@ -81,6 +81,8 @@ $vip_status = false;
 $avg_interval = null;
 
 if (!$setup_needed) {
+    $clientOrderBy = 'first_name ASC';
+
     try {
         $clientCol = $pdo->query("SHOW COLUMNS FROM clients LIKE 'is_active'")->fetch();
         if (!$clientCol) {
@@ -91,6 +93,13 @@ if (!$setup_needed) {
         if (!$tagCol) {
             $pdo->exec("ALTER TABLE clients ADD COLUMN client_tags VARCHAR(255) DEFAULT NULL");
         }
+
+        $favoriteCol = $pdo->query("SHOW COLUMNS FROM clients LIKE 'is_favorite'")->fetch();
+        if (!$favoriteCol) {
+            $pdo->exec("ALTER TABLE clients ADD COLUMN is_favorite TINYINT(1) DEFAULT 0");
+        }
+
+        $clientOrderBy = 'COALESCE(c.is_favorite, 0) DESC, first_name ASC';
     } catch (Throwable $e) {
         // Když se sloupec nepodaří přidat, aplikace poběží dál v původním režimu.
     }
@@ -107,7 +116,7 @@ if (!$setup_needed) {
         (SELECT GROUP_CONCAT(DISTINCT DATE_FORMAT(visit_date, '%d.%m.%Y') SEPARATOR ' ') 
          FROM visits WHERE client_id = c.id) as visit_dates
         FROM clients c 
-        ORDER BY first_name ASC
+        ORDER BY $clientOrderBy
     ");
     $clients = $c_stmt->fetchAll();
 

@@ -34,6 +34,14 @@ try {
     } else {
         echo "Sloupec 'client_tags' u klientek už existuje.\n";
     }
+
+    if (!in_array('is_favorite', $clientColumns)) {
+        echo "Sloupec 'is_favorite' u klientek chybí. Přidávám ho...\n";
+        $pdo->exec("ALTER TABLE clients ADD COLUMN is_favorite TINYINT(1) DEFAULT 0");
+        echo "Sloupec pro oblíbené klientky byl úspěšně přidán.\n";
+    } else {
+        echo "Sloupec 'is_favorite' u klientek už existuje.\n";
+    }
     
     echo "Povedlo se! Aplikace by měla být zase funkční.\n";
 } catch (PDOException $e) {
