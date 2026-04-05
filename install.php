@@ -30,6 +30,34 @@ echo "<!DOCTYPE html>
 
 echo "<h1>🛠️ Instalační skript salonu</h1>";
 
+function resolveImportCsv(array $preferredNames, array $patterns): ?string {
+    foreach ($preferredNames as $candidate) {
+        $candidate = trim((string)$candidate);
+        if ($candidate === '') {
+            continue;
+        }
+
+        $pathsToTry = [$candidate, __DIR__ . DIRECTORY_SEPARATOR . $candidate];
+        foreach ($pathsToTry as $path) {
+            if (is_file($path) && is_readable($path)) {
+                return $path;
+            }
+        }
+    }
+
+    foreach ($patterns as $pattern) {
+        $matches = glob(__DIR__ . DIRECTORY_SEPARATOR . $pattern) ?: [];
+        sort($matches, SORT_NATURAL | SORT_FLAG_CASE);
+        foreach ($matches as $match) {
+            if (is_file($match) && is_readable($match)) {
+                return $match;
+            }
+        }
+    }
+
+    return null;
+}
+
 if (!isset($_GET['run'])) {
     echo "<div class='warning'>⚠️ VAROVÁNÍ: Spuštění tohoto skriptu SMAŽE veškerá současná data a nastaví čistou databázi!</div>";
     echo "<p>Chcete-li pokračovat s novou instalací a importem dat (včetně demo záznamu klienta), klikněte níže:</p>";
@@ -54,9 +82,14 @@ try {
 
     // 2. Import barev
     $materialCount = 0;
-    if (file_exists('barvy_loreal.csv')) {
-        $handle = fopen('barvy_loreal.csv', 'r');
-        fgetcsv($handle, 0, ';'); 
+    $materialsFile = resolveImportCsv(
+        [$_GET['materials_csv'] ?? '', getenv('MATERIALS_CSV') ?: '', 'barvy.csv', 'materials.csv'],
+        ['barvy*.csv', 'materials*.csv']
+    );
+
+    if ($materialsFile) {
+        $handle = fopen($materialsFile, 'r');
+        fgetcsv($handle, 0, ';');
         while (($data = fgetcsv($handle, 0, ';')) !== FALSE) {
             if (count($data) < 3) continue;
             $stmt = $pdo->prepare("INSERT INTO materials (brand, category, name) VALUES (?, ?, ?)");
@@ -64,14 +97,21 @@ try {
             $materialCount++;
         }
         fclose($handle);
-        echo "<div class='success'>✅ Importováno $materialCount odstínů barev.</div>";
+        echo "<div class='success'>✅ Importováno $materialCount odstínů barev ze souboru <b>" . htmlspecialchars(basename($materialsFile)) . "</b>.</div>";
+    } else {
+        echo "<div class='warning'>⚠️ Soubor s materiály nebyl nalezen. Aplikace hledá např. <code>barvy.csv</code> nebo libovolné <code>barvy*.csv</code>.</div>";
     }
 
     // 3. Import produktů
     $productCount = 0;
-    if (file_exists('produkty_loreal.csv')) {
-        $handle = fopen('produkty_loreal.csv', 'r');
-        fgetcsv($handle, 0, ';'); 
+    $productsFile = resolveImportCsv(
+        [$_GET['products_csv'] ?? '', getenv('PRODUCTS_CSV') ?: '', 'produkty.csv', 'products.csv'],
+        ['produkty*.csv', 'products*.csv']
+    );
+
+    if ($productsFile) {
+        $handle = fopen($productsFile, 'r');
+        fgetcsv($handle, 0, ';');
         while (($data = fgetcsv($handle, 0, ';')) !== FALSE) {
             if (count($data) < 6) continue;
             $fullName = $data[1] . ' - ' . $data[2] . ' (' . $data[3] . ')';
@@ -80,7 +120,9 @@ try {
             $productCount++;
         }
         fclose($handle);
-        echo "<div class='success'>✅ Importováno $productCount produktů k prodeji.</div>";
+        echo "<div class='success'>✅ Importováno $productCount produktů k prodeji ze souboru <b>" . htmlspecialchars(basename($productsFile)) . "</b>.</div>";
+    } else {
+        echo "<div class='warning'>⚠️ Soubor s produkty nebyl nalezen. Aplikace hledá např. <code>produkty.csv</code> nebo libovolné <code>produkty*.csv</code>.</div>";
     }
 
     // 4. Vytvoření Demo dat (Jana Ukázková)

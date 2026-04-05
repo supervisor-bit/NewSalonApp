@@ -4,8 +4,8 @@ Pokud instalujete aplikaci poprvé nebo chcete čistý reset, nahrajte soubory n
 
 **Tento skript automaticky:**
 - Vytvoří/Obnoví všechny databázové tabulky.
-- Naimportuje barvy a oxydanty ze souboru `barvy_loreal.csv`.
-- Naimportuje produkty na doma ze souboru `produkty_loreal.csv`.
+- Naimportuje barvy a oxydanty z prvního nalezeného souboru `barvy*.csv` / `materials*.csv`.
+- Naimportuje produkty na doma z prvního nalezeného souboru `produkty*.csv` / `products*.csv`.
 
 ## 📥 2. Nahrání souborů
 Zkopírujte veškerý obsah složky `deploy/` do kořenového adresáře vašeho webu (např. přes FTP).
