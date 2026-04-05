@@ -240,7 +240,83 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
 /* Visit Cards */
 .visit-card { background: #fff; border: 1px solid #eef2f6; border-radius: 20px; margin-bottom: 24px; overflow: hidden; transition: 0.3s; box-shadow: 0 4px 20px -10px rgba(0,0,0,0.05); }
 .visit-card-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; background: #fbfbfc; border-bottom: 1px solid #f1f5f9; }
+.visit-card-header-toggle { cursor: pointer; }
+.visit-card-header-toggle:hover { background: #f8fafc; }
+.visit-card-header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+.visit-card-toggle {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    background: #fff;
+    color: #64748b;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.visit-card-toggle:hover {
+    background: #f8fafc;
+    color: var(--primary-dark);
+    border-color: rgba(197, 160, 89, 0.35);
+}
+.visit-card-toggle svg {
+    transition: transform 0.2s ease;
+}
+.visit-card.is-collapsed .visit-card-body,
+.visit-card.is-collapsed .visit-card-actions {
+    display: none;
+}
+.visit-card.is-collapsed .visit-card-toggle svg {
+    transform: rotate(-90deg);
+}
 .visit-card-body { padding: 24px; }
+.visit-summary-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin: 0 0 14px;
+    padding: 12px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(197,160,89,0.08), rgba(15,23,42,0.03));
+    border: 1px solid rgba(197,160,89,0.18);
+}
+.visit-summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.9);
+    border: 1px solid #eef2f7;
+}
+.visit-summary-item-wide {
+    grid-column: 1 / -1;
+}
+.visit-summary-label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: #94a3b8;
+}
+.visit-summary-value {
+    font-size: 15px;
+    font-weight: 800;
+    color: #253344;
+}
+.visit-summary-value-small {
+    font-size: 12.5px;
+    line-height: 1.4;
+}
 .visit-card-actions { padding: 14px 24px; background: #fbfbfc; border-top: 1px solid #f1f5f9; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .visit-done { border-left: 6px solid #10b981; }
 .visit-pending { border-left: 6px solid #f59e0b; }

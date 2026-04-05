@@ -1159,6 +1159,12 @@
         header.classList.toggle('active');
     }
 
+    function toggleVisitCard(header) {
+        const card = header?.closest('.visit-card');
+        if (!card) return;
+        card.classList.toggle('is-collapsed');
+    }
+
     function hledejMaterial() {
         let filter = document.getElementById('mat-hledani').value.toLowerCase().trim();
         let contents = document.querySelectorAll('#set-view-materials .acc-content');

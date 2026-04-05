@@ -869,7 +869,7 @@
                             <button type="button" class="btn-primary" onclick="ukazNovaNavsteva()">+ Zadat první návštěvu</button>
                         </div>
                     <?php  else: ?>
-                        <?php  foreach($visits as $v): ?>
+                        <?php  foreach($visits as $visitIndex => $v): ?>
                             <?php  
                                 // Návštěva je uzavřená až po vyúčtování, ne jen kvůli rychlé poznámce.
                                 $vDone = (int)($v['price'] ?? 0) > 0; 
@@ -877,6 +877,11 @@
                                 // Prepare summary for checkout/payment dialog
                                 $sHtml = "";
                                 $total_products_sum = 0;
+                                $total_material_g = 0;
+                                $total_color_g = 0;
+                                $total_oxidant_g = 0;
+                                $ratio_labels = [];
+                                $ratio_summary = 'Neuvedeno';
                                 
                                 if(!empty($v['formulas'])) {
                                     $sHtml .= "<div style='font-weight:700; font-size:11px; text-transform:uppercase; color:#64748b; margin-bottom:5px; border-bottom:1px solid #e2e8f0; padding-bottom:3px;'>Receptury:</div>";
@@ -893,13 +898,32 @@
                                             $grouped[$bn]['ratio'] = (string)$f['mix_ratio'];
                                         }
                                         $grouped[$bn]['items'][] = $f;
+
+                                        $amt = (float)($f['amount_g'] ?? 0);
+                                        $total_material_g += $amt;
+                                        $formulaText = mb_strtolower(trim(($f['category'] ?? '') . ' ' . ($f['name'] ?? '')));
+                                        if (strpos($formulaText, 'oxid') !== false || strpos($formulaText, 'oxyd') !== false) {
+                                            $total_oxidant_g += $amt;
+                                        } else {
+                                            $total_color_g += $amt;
+                                        }
                                     }
                                     foreach($grouped as $bn => $bowlData) {
+                                        if (!empty($bowlData['ratio'])) {
+                                            $ratio_labels[] = $bn . ' ' . $bowlData['ratio'];
+                                        }
                                         $ratioText = !empty($bowlData['ratio']) ? ' · poměr ' . htmlspecialchars($bowlData['ratio']) : '';
                                         $sHtml .= "<div style='font-size:11px; font-weight:700; color:#94a3b8; font-style:italic; margin:5px 0 2px 0;'>".htmlspecialchars($bn).$ratioText.":</div>";
                                         foreach($bowlData['items'] as $f) {
                                             $sHtml .= "<div style='font-size:13px; color:#475569; margin-bottom:2px; padding-left:10px;'>• " . htmlspecialchars($f['category'] . ' – ' . $f['name']) . " <b>" . $f['amount_g'] . "g</b></div>";
                                         }
+                                    }
+
+                                    if (!empty($ratio_labels)) {
+                                        $ratio_summary = implode(' • ', $ratio_labels);
+                                    } elseif ($total_color_g > 0 && $total_oxidant_g > 0) {
+                                        $ratio_value = rtrim(rtrim(number_format($total_oxidant_g / $total_color_g, 2, ',', ''), '0'), ',');
+                                        $ratio_summary = '1:' . $ratio_value;
                                     }
                                 }
                                 
@@ -918,10 +942,10 @@
                                 
                                 if(!$sHtml) $sHtml = "<div style='font-size:13px; color:#94a3b8; font-style:italic;'>Bez receptury a produktů</div>";
                             ?>
-                            <div class="visit-card <?= $vDone ? 'visit-done' : 'visit-pending' ?>" data-search-date="<?= date('d. m. Y', strtotime($v['visit_date'])) ?>">
+                            <div class="visit-card <?= $vDone ? 'visit-done' : 'visit-pending' ?><?= $visitIndex > 0 ? ' is-collapsed' : '' ?>" data-search-date="<?= date('d. m. Y', strtotime($v['visit_date'])) ?>">
 
                                 <!-- VISIT HEADER -->
-                                <div class="visit-card-header">
+                                <div class="visit-card-header visit-card-header-toggle" onclick="toggleVisitCard(this)">
                                     <div style="display:flex; align-items:center; gap:10px;">
                                         <span style="font-weight:700; font-size:14px; color:var(--text);">
                                             <?= date('d. m. Y', strtotime($v['visit_date'])) ?>
@@ -938,16 +962,21 @@
                                             </span>
                                         <?php  endif; ?>
                                     </div>
-                                    <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
-                                        <?php  if($v['s_metal_detox'] ?? 0): ?><span class="history-service-icon active" title="Metal Detox"><i data-lucide="shield-check"></i></span><?php endif; ?>
-                                        <?php  if($v['s_trim'] ?? 0): ?><span class="history-service-icon active" title="Stříhání"><i data-lucide="scissors"></i></span><?php endif; ?>
-                                        <?php  if($v['s_blow'] ?? 0): ?><span class="history-service-icon active" title="Foukání"><i data-lucide="wind"></i></span><?php endif; ?>
-                                        <?php  if($v['s_curl'] ?? 0): ?><span class="history-service-icon active" title="Kulmování"><i data-lucide="spline"></i></span><?php endif; ?>
-                                        <?php  if($v['s_iron'] ?? 0): ?><span class="history-service-icon active" title="Žehlení"><i data-lucide="minus"></i></span><?php endif; ?>
+                                    <div class="visit-card-header-right">
+                                        <div style="display:flex; align-items:center; gap:4px;">
+                                            <?php  if($v['s_metal_detox'] ?? 0): ?><span class="history-service-icon active" title="Metal Detox"><i data-lucide="shield-check"></i></span><?php endif; ?>
+                                            <?php  if($v['s_trim'] ?? 0): ?><span class="history-service-icon active" title="Stříhání"><i data-lucide="scissors"></i></span><?php endif; ?>
+                                            <?php  if($v['s_blow'] ?? 0): ?><span class="history-service-icon active" title="Foukání"><i data-lucide="wind"></i></span><?php endif; ?>
+                                            <?php  if($v['s_curl'] ?? 0): ?><span class="history-service-icon active" title="Kulmování"><i data-lucide="spline"></i></span><?php endif; ?>
+                                            <?php  if($v['s_iron'] ?? 0): ?><span class="history-service-icon active" title="Žehlení"><i data-lucide="minus"></i></span><?php endif; ?>
+                                        </div>
+                                        <?php  if($vDone && $v['price'] > 0): ?>
+                                            <span style="font-weight:700; font-size:17px; color:#166534;"><?= number_format($v['price'], 0, ',', ' ') ?> Kč</span>
+                                        <?php  endif; ?>
+                                        <button type="button" class="visit-card-toggle" aria-label="Rozbalit nebo sbalit detail návštěvy" onclick="event.stopPropagation(); toggleVisitCard(this.closest('.visit-card-header'))">
+                                            <i data-lucide="chevron-down" style="width:16px; height:16px;"></i>
+                                        </button>
                                     </div>
-                                    <?php  if($vDone && $v['price'] > 0): ?>
-                                        <span style="font-weight:700; font-size:17px; color:#166534;"><?= number_format($v['price'], 0, ',', ' ') ?> Kč</span>
-                                    <?php  endif; ?>
                                 </div>
 
                                 <!-- VISIT BODY -->
@@ -959,6 +988,31 @@
                                                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                                                 Vyúčtovat a uzavřít
                                             </button>
+                                        </div>
+                                    <?php  endif; ?>
+
+                                    <?php  if(!empty($v['formulas'])): ?>
+                                        <div class="visit-summary-panel">
+                                            <div class="visit-summary-item">
+                                                <span class="visit-summary-label">Materiál celkem</span>
+                                                <span class="visit-summary-value"><?= number_format($total_material_g, 0, ',', ' ') ?> g</span>
+                                            </div>
+                                            <div class="visit-summary-item">
+                                                <span class="visit-summary-label">Barva</span>
+                                                <span class="visit-summary-value"><?= $total_color_g > 0 ? number_format($total_color_g, 0, ',', ' ') . ' g' : '—' ?></span>
+                                            </div>
+                                            <div class="visit-summary-item">
+                                                <span class="visit-summary-label">Oxidant</span>
+                                                <span class="visit-summary-value"><?= $total_oxidant_g > 0 ? number_format($total_oxidant_g, 0, ',', ' ') . ' g' : '—' ?></span>
+                                            </div>
+                                            <div class="visit-summary-item">
+                                                <span class="visit-summary-label">Misky</span>
+                                                <span class="visit-summary-value"><?= count($grouped) ?></span>
+                                            </div>
+                                            <div class="visit-summary-item visit-summary-item-wide">
+                                                <span class="visit-summary-label">Poměr</span>
+                                                <span class="visit-summary-value visit-summary-value-small"><?= htmlspecialchars($ratio_summary) ?></span>
+                                            </div>
                                         </div>
                                     <?php  endif; ?>
 
