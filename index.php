@@ -845,6 +845,20 @@
                                 Pro klidný provoz doporučujeme pravidelně stahovat zálohu databáze a po větších úpravách držet v synchronizaci i složku <code>deploy/</code>.
                             </p>
                         </div>
+
+                        <div class="sekce pwa-install-card" style="margin-bottom:0;">
+                            <span class="sekce-nadpis">Desktop aplikace</span>
+                            <p style="margin:0 0 12px 0; color:#475569; font-size:14px; line-height:1.7;">
+                                KARTU si můžete na počítači nainstalovat jako samostatnou aplikaci do Docku nebo nabídky Start a otevírat ji ve vlastním okně.
+                            </p>
+                            <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+                                <button type="button" id="install-desktop-app-btn" class="btn-ulozit btn-install-app" onclick="installDesktopApp()" style="display:none; margin-top:0; width:auto;">
+                                    <i data-lucide="download" style="width:16px; height:16px;"></i>
+                                    Nainstalovat na tento počítač
+                                </button>
+                                <span id="desktop-install-status" class="pwa-status-note">V Chrome nebo Edge můžete aplikaci připnout přes menu prohlížeče.</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

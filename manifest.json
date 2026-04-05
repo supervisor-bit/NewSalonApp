@@ -1,17 +1,36 @@
 {
+  "id": "./index.php",
   "name": "Profi Kadeřnická KARTA",
   "short_name": "KARTA",
-  "description": "Evidence klientek a míchárna",
-  "start_url": "index.php",
+  "description": "Evidence klientek, historie návštěv a salonní míchárna",
+  "lang": "cs",
+  "dir": "ltr",
+  "start_url": "./index.php",
+  "scope": "./",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "landscape",
   "background_color": "#0f172a",
   "theme_color": "#c5a059",
+  "categories": ["business", "productivity"],
   "icons": [
     {
       "src": "icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Klientky",
+      "short_name": "Klientky",
+      "url": "./index.php"
+    },
+    {
+      "name": "Správa salonu",
+      "short_name": "Nastavení",
+      "url": "./index.php?view=settings"
     }
   ]
 }

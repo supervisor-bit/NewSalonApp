@@ -19,6 +19,65 @@
         return url + (url.includes('?') ? '&' : '?') + 'csrf_token=' + encodeURIComponent(token);
     }
 
+    let deferredInstallPrompt = null;
+    function isStandaloneDisplayMode() {
+        return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+            || window.navigator.standalone === true;
+    }
+
+    function updateDesktopInstallUi(message) {
+        const installBtn = document.getElementById('install-desktop-app-btn');
+        const statusEl = document.getElementById('desktop-install-status');
+        if (!installBtn || !statusEl) return;
+
+        if (isStandaloneDisplayMode()) {
+            installBtn.style.display = 'none';
+            statusEl.innerHTML = message || 'Aplikace už je na tomto zařízení nainstalovaná a běží samostatně.';
+            return;
+        }
+
+        if (deferredInstallPrompt) {
+            installBtn.style.display = 'inline-flex';
+            statusEl.innerHTML = message || 'KARTU si můžete připnout do počítače a otevírat ji bez klasického panelu prohlížeče.';
+            return;
+        }
+
+        installBtn.style.display = 'none';
+        statusEl.innerHTML = message || 'V Chrome nebo Edge otevřete menu <b>⋮</b> a zvolte <b>Instalovat aplikaci</b>.';
+    }
+
+    async function installDesktopApp() {
+        if (!deferredInstallPrompt) {
+            updateDesktopInstallUi();
+            return;
+        }
+
+        deferredInstallPrompt.prompt();
+        const choice = await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+
+        if (choice && choice.outcome === 'accepted') {
+            updateDesktopInstallUi('Instalace byla potvrzena. KARTA se objeví jako samostatná aplikace.');
+        } else {
+            updateDesktopInstallUi('Instalaci můžete kdykoli spustit později z menu prohlížeče.');
+        }
+    }
+
+    window.addEventListener('beforeinstallprompt', (event) => {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+        updateDesktopInstallUi();
+    });
+
+    window.addEventListener('appinstalled', () => {
+        deferredInstallPrompt = null;
+        updateDesktopInstallUi('Aplikace byla právě nainstalována na toto zařízení.');
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        updateDesktopInstallUi();
+    });
+
     let actionDialogResolver = null;
     function openActionDialog(options = {}) {
         const modal = document.getElementById('action-dialog-modal');
