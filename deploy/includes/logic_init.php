@@ -87,6 +87,7 @@ $stats_total_prod_clients = 0;
 $stats_total_prod_direct = 0;
 $m_direct_now = 0;
 $top_home_products = [];
+$shopping_total_qty = 0;
 
 if (!$setup_needed) {
     $clientOrderBy = 'first_name ASC';
@@ -107,6 +108,15 @@ if (!$setup_needed) {
         if (!$favoriteCol) {
             $pdo->exec("ALTER TABLE clients ADD COLUMN is_favorite TINYINT(1) DEFAULT 0");
         }
+
+        $materialColumns = $pdo->query("SHOW COLUMNS FROM materials")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('needs_buying', $materialColumns, true)) {
+            $pdo->exec("ALTER TABLE materials ADD COLUMN needs_buying TINYINT(1) DEFAULT 0");
+        }
+        if (!in_array('shopping_qty', $materialColumns, true)) {
+            $pdo->exec("ALTER TABLE materials ADD COLUMN shopping_qty INT NOT NULL DEFAULT 1");
+        }
+        $pdo->exec("UPDATE materials SET shopping_qty = 1 WHERE shopping_qty IS NULL OR shopping_qty < 1");
 
         $pdo->exec("CREATE TABLE IF NOT EXISTS direct_sales (
             id INT PRIMARY KEY AUTO_INCREMENT,
@@ -283,7 +293,7 @@ if (!$setup_needed) {
 
     // 3. Stáhnutí číselníku pro selekty s prioritou podle používání
     $m_stmt = $pdo->query("
-        SELECT m.id, m.category, m.name, m.is_active, m.needs_buying,
+        SELECT m.id, m.category, m.name, m.is_active, m.needs_buying, COALESCE(m.shopping_qty, 1) AS shopping_qty,
         (SELECT COUNT(*) FROM formulas f WHERE f.material_id = m.id) as use_count
         FROM materials m 
         ORDER BY use_count DESC, m.category, m.name
@@ -294,8 +304,11 @@ if (!$setup_needed) {
     $materials = array_filter($all_materials, function($m) { return $m['is_active'] == 1; });
     
     // 4. Seznam k nákupu (Hlídač)
-    $shop_stmt = $pdo->query("SELECT id, brand, category, name FROM materials WHERE needs_buying = 1 ORDER BY brand, category, name");
+    $shop_stmt = $pdo->query("SELECT id, brand, category, name, COALESCE(shopping_qty, 1) AS shopping_qty FROM materials WHERE needs_buying = 1 ORDER BY brand, category, name");
     $shopping_list = $shop_stmt->fetchAll();
+    $shopping_total_qty = array_sum(array_map(static function ($item) {
+        return max(1, (int)($item['shopping_qty'] ?? 1));
+    }, $shopping_list));
     
     // 4. Stahnuti produktu na doma s prioritou podle prodejů
     $direct_sales_usage_sql = $has_direct_sales

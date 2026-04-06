@@ -76,6 +76,7 @@
             'name' => $m['name'], 
             'label' => trim($m['category'] . ' - ' . $m['name']),
             'needs_buying' => (int)$m['needs_buying'],
+            'shopping_qty' => (int)($m['shopping_qty'] ?? 1),
             'use_count' => (int)$m['use_count'],
             'category' => $m['category']
         ]; 
@@ -344,9 +345,9 @@
             <div id="acc-view-nakup" class="acc-view" style="display:none;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                     <h3 class="sekce-nadpis" style="margin:0;">Věci k nákupu (Hlídač)</h3>
-                    <div id="shopping-counter-box" style="background:#fef2f2; border:1px solid #fee2e2; color:#be123c; padding:8px 15px; border-radius:10px; font-size:13px; font-weight:600; display:<?= empty($shopping_list) ? 'none' : 'flex' ?>; align-items:center; gap:8px;">
+                    <div id="shopping-counter-box" style="background:#fef2f2; border:1px solid #fee2e2; color:#be123c; padding:8px 15px; border-radius:10px; font-size:13px; font-weight:600; display:<?= empty($shopping_list) ? 'none' : 'flex' ?>; align-items:center; gap:8px; flex-wrap:wrap;">
                         <i data-lucide="shopping-cart" style="width:16px;height:16px;"></i>
-                        Aktuálně chybí <span id="shopping-counter-val"><?= count($shopping_list) ?></span> položek
+                        Aktuálně chybí <span id="shopping-counter-val"><?= count($shopping_list) ?></span> položek • <span id="shopping-counter-qty"><?= (int)$shopping_total_qty ?></span> ks
                     </div>
                 </div>
                 
@@ -363,17 +364,26 @@
                     <!-- Seznam položek -->
                     <div id="shopping-list-rows">
                         <?php foreach($shopping_list as $sl): ?>
-                            <div class="acc-row-v2 shopping-row" data-id="<?= $sl['id'] ?>" style="padding:18px 25px;">
+                            <?php $shoppingQty = max(1, (int)($sl['shopping_qty'] ?? 1)); ?>
+                            <div class="acc-row-v2 shopping-row" data-id="<?= $sl['id'] ?>" data-qty="<?= $shoppingQty ?>" style="padding:18px 25px;">
                                 <div class="row-avatar" style="background:#fff7ed; color:#f97316;">
                                     <i data-lucide="package" style="width:18px;height:18px;"></i>
                                 </div>
                                 <div class="row-info">
                                     <div class="name" style="font-size:18px;"><?= htmlspecialchars($sl['name']) ?></div>
-                                    <div class="note" style="font-size:12px; text-transform:uppercase; font-weight:600; letter-spacing:0.5px;"><?= htmlspecialchars($sl['category']) ?> (<?= htmlspecialchars($sl['brand']) ?>)</div>
+                                    <div class="note" style="font-size:12px; text-transform:uppercase; font-weight:600; letter-spacing:0.5px;"><?= htmlspecialchars($sl['category']) ?> (<?= htmlspecialchars($sl['brand']) ?>) • objednat <span class="shopping-qty-inline"><?= $shoppingQty ?></span> ks</div>
                                 </div>
-                                <button type="button" class="btn-ulozit" onclick="toggleShoppingPC(<?= $sl['id'] ?>, this, true)" style="background:#f1f5f9; color:var(--primary); border:none; padding:10px 20px; font-size:13px; font-weight:700; border-radius:10px; display:flex; align-items:center; gap:8px; margin:0;">
-                                    <i data-lucide="check" style="width:16px;height:16px;color:#10b981;"></i> Označit jako koupené
-                                </button>
+                                <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end;">
+                                    <div style="display:flex; align-items:center; gap:8px; background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:6px 8px;">
+                                        <button type="button" onclick="changeShoppingQty(<?= $sl['id'] ?>, -1, this)" style="border:none; background:#fff; color:#9a3412; width:24px; height:24px; border-radius:7px; cursor:pointer; font-weight:800; font-size:15px; line-height:1;">−</button>
+                                        <span class="shopping-qty-value" style="min-width:22px; text-align:center; font-weight:800; color:#9a3412;"><?= $shoppingQty ?></span>
+                                        <button type="button" onclick="changeShoppingQty(<?= $sl['id'] ?>, 1, this)" style="border:none; background:#fff; color:#9a3412; width:24px; height:24px; border-radius:7px; cursor:pointer; font-weight:800; font-size:15px; line-height:1;">+</button>
+                                        <span style="font-size:11px; font-weight:700; color:#9a3412; text-transform:uppercase;">ks</span>
+                                    </div>
+                                    <button type="button" class="btn-ulozit" onclick="toggleShoppingPC(<?= $sl['id'] ?>, this, true)" style="background:#f1f5f9; color:var(--primary); border:none; padding:10px 20px; font-size:13px; font-weight:700; border-radius:10px; display:flex; align-items:center; gap:8px; margin:0;">
+                                        <i data-lucide="check" style="width:16px;height:16px;color:#10b981;"></i> Označit jako koupené
+                                    </button>
+                                </div>
                             </div>
                         <?php endforeach; ?>
                     </div>

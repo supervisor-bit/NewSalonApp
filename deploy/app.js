@@ -1877,6 +1877,74 @@
     }
 
 
+    function refreshShoppingUi(listCount = 0, totalQty = 0) {
+        const safeCount = Math.max(0, parseInt(listCount, 10) || 0);
+        const safeQty = Math.max(0, parseInt(totalQty, 10) || 0);
+        const navTab = document.getElementById('acc-btn-nakup');
+        const counterVal = document.getElementById('shopping-counter-val');
+        const counterQty = document.getElementById('shopping-counter-qty');
+        const counterBox = document.getElementById('shopping-counter-box');
+        const emptyState = document.getElementById('shopping-empty-state');
+        let badge = document.getElementById('shopping-badge-count');
+
+        if (safeCount > 0) {
+            if (badge) {
+                badge.textContent = String(safeCount);
+            } else if (navTab) {
+                badge = document.createElement('span');
+                badge.id = 'shopping-badge-count';
+                badge.style = 'background:#ef4444; color:#fff; font-size:10px; padding:2px 6px; border-radius:10px; margin-left:5px;';
+                badge.textContent = String(safeCount);
+                navTab.appendChild(badge);
+            }
+        } else if (badge) {
+            badge.remove();
+        }
+
+        if (counterVal) counterVal.textContent = String(safeCount);
+        if (counterQty) counterQty.textContent = String(safeQty);
+        if (counterBox) counterBox.style.display = safeCount > 0 ? 'flex' : 'none';
+        if (emptyState) emptyState.style.display = safeCount > 0 ? 'none' : 'block';
+    }
+
+    async function changeShoppingQty(id, delta, btn) {
+        const row = btn?.closest('.shopping-row');
+        const qtyEl = row?.querySelector('.shopping-qty-value');
+        const currentQty = Math.max(1, parseInt(qtyEl?.textContent || row?.dataset.qty || '1', 10) || 1);
+        const nextQty = Math.max(1, currentQty + delta);
+
+        if (nextQty === currentQty) return;
+
+        try {
+            const formData = new FormData();
+            formData.append('material_id', id);
+            formData.append('mode', 'set_qty');
+            formData.append('quantity', String(nextQty));
+            formData.append('csrf_token', getCsrfToken());
+
+            const resp = await fetch('api_shopping.php', { method: 'POST', body: formData });
+            const json = await resp.json();
+            if (!json.success) throw new Error(json.error || 'Nepodařilo se upravit počet.');
+
+            if (row) {
+                row.dataset.qty = String(json.shopping_qty);
+                row.querySelectorAll('.shopping-qty-value, .shopping-qty-inline').forEach(el => {
+                    el.textContent = String(json.shopping_qty);
+                });
+            }
+
+            refreshShoppingUi(json.list_count, json.total_qty);
+
+            const mat = MATERIALS_DATA.find(m => m.id == id);
+            if (mat) {
+                mat.needs_buying = json.new_status;
+                mat.shopping_qty = json.shopping_qty;
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
     function updateShopIconPC(container, materialId, needsBuying) {
         if(!container) return;
         // Styl košíku pro PC míchárnu (šedý = ok, zlatý = koupit)
@@ -1910,50 +1978,7 @@
                     btn.title = 'Přidat na nákupní seznam';
                 }
                 
-                // Aktualizace badge v reálném čase (horní navigace)
-                const badge = document.getElementById('shopping-badge-count');
-                const navTab = document.getElementById('acc-btn-nakup');
-                
-                if(json.new_status) {
-                    if(badge) {
-                        badge.textContent = parseInt(badge.textContent) + 1;
-                    } else if(navTab) {
-                        const newBadge = document.createElement('span');
-                        newBadge.id = 'shopping-badge-count';
-                        newBadge.style = 'background:#ef4444; color:#fff; font-size:10px; padding:2px 6px; border-radius:10px; margin-left:5px;';
-                        newBadge.textContent = '1';
-                        navTab.appendChild(newBadge);
-                    }
-                } else {
-                    if(badge) {
-                        let currentCount = parseInt(badge.textContent);
-                        if(currentCount > 1) badge.textContent = currentCount - 1;
-                        else badge.remove();
-                    }
-                }
-
-                // AKTUALIZACE PANELU FINANCÍ (Nákupní seznam v reálném čase)
-                const counterVal = document.getElementById('shopping-counter-val');
-                const counterBox = document.getElementById('shopping-counter-box');
-                const emptyState = document.getElementById('shopping-empty-state');
-                
-                if(counterVal) {
-                    let current = parseInt(counterVal.textContent);
-                    if(!json.new_status && current > 0) {
-                        // Naskladněno (odebráno ze seznamu)
-                        let nextCount = current - 1;
-                        counterVal.textContent = nextCount;
-                        if(nextCount === 0) {
-                            if(counterBox) counterBox.style.display = 'none';
-                            if(emptyState) emptyState.style.display = 'block';
-                        }
-                    } else if(json.new_status) {
-                        // Přidáno do seznamu
-                        counterVal.textContent = current + 1;
-                        if(counterBox) counterBox.style.display = 'flex';
-                        if(emptyState) emptyState.style.display = 'none';
-                    }
-                }
+                refreshShoppingUi(json.list_count, json.total_qty);
 
                 // Pokud jsme přímo v nákupním seznamu, řádek plynule schováme
                 if(isAccountingView && !json.new_status) {
@@ -1968,7 +1993,10 @@
 
                 // Aktualizujeme i lokální data materiálů
                 let mat = MATERIALS_DATA.find(m => m.id == id);
-                if(mat) mat.needs_buying = json.new_status;
+                if(mat) {
+                    mat.needs_buying = json.new_status;
+                    mat.shopping_qty = json.shopping_qty;
+                }
             }
         } catch(e) { console.error(e); }
     }

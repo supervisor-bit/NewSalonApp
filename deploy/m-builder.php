@@ -528,7 +528,10 @@ if ($source_id > 0) {
                     
                     // Aktualizujeme i lokální data, aby se to projevilo u dalších řádků
                     let mat = materialsData.find(m => m.id == id);
-                    if(mat) mat.needs_buying = json.new_status;
+                    if(mat) {
+                        mat.needs_buying = json.new_status;
+                        mat.shopping_qty = json.shopping_qty || mat.shopping_qty || 1;
+                    }
                 }
             } catch(e) { console.error(e); }
         }

@@ -28,7 +28,9 @@ CREATE TABLE IF NOT EXISTS `materials` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
   `brand` VARCHAR(50) NOT NULL DEFAULT 'L''Oréal',
   `category` VARCHAR(50) NOT NULL,
-  `name` VARCHAR(100) NOT NULL
+  `name` VARCHAR(100) NOT NULL,
+  `needs_buying` TINYINT(1) DEFAULT 0,
+  `shopping_qty` INT NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS `visits` (

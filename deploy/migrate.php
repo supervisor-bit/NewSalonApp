@@ -18,6 +18,16 @@ try {
         echo "Sloupec 'needs_buying' už existuje.\n";
     }
 
+    if (!in_array('shopping_qty', $columns)) {
+        echo "Sloupec 'shopping_qty' chybí. Přidávám ho...\n";
+        $pdo->exec("ALTER TABLE materials ADD COLUMN shopping_qty INT NOT NULL DEFAULT 1");
+        echo "Sloupec pro počet kusů byl úspěšně přidán.\n";
+    } else {
+        echo "Sloupec 'shopping_qty' už existuje.\n";
+    }
+
+    $pdo->exec("UPDATE materials SET shopping_qty = 1 WHERE shopping_qty IS NULL OR shopping_qty < 1");
+
     $clientColumns = $pdo->query("DESCRIBE clients")->fetchAll(PDO::FETCH_COLUMN);
     if (!in_array('is_active', $clientColumns)) {
         echo "Sloupec 'is_active' u klientů chybí. Přidávám ho...\n";
