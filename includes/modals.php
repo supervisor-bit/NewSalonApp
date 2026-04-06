@@ -29,7 +29,7 @@
             <input type="text" class="material-search" placeholder="Hledat odstín..." autocomplete="off">
             <div class="ac-list"></div>
         </div>
-        <div class="shop-toggle-pc" style="display:flex; align-items:center; justify-content:center; min-width:30px;"></div>
+        <div class="shop-toggle-pc" style="display:flex; align-items:center; justify-content:center; min-width:50px; flex-direction:column; gap:4px;"></div>
         <input type="number" class="amount-input" placeholder="g">
         <button type="button" class="btn-remove" onclick="removeRecipeRow(this)" tabindex="-1">×</button>
     </div>

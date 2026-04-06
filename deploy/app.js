@@ -709,7 +709,7 @@
                         const shopCont = row.querySelector('.shop-toggle-pc');
                         if(shopCont) {
                             let matFull = MATERIALS_DATA.find(mat => mat.id == m.id);
-                            updateShopIconPC(shopCont, m.id, matFull ? matFull.needs_buying : 0);
+                            updateShopIconPC(shopCont, m.id, matFull ? matFull.needs_buying : 0, matFull ? matFull.stock_state : 'none');
                         }
                         updateBowlMixInfo(row.closest('.bowl-container'));
                     }
@@ -972,7 +972,7 @@
                 // Zobrazit košík i pro načtené materiály
                 const shopCont = rTpl.querySelector('.shop-toggle-pc');
                 if(shopCont) {
-                    updateShopIconPC(shopCont, matId, matMatch.needs_buying);
+                    updateShopIconPC(shopCont, matId, matMatch.needs_buying, matMatch.stock_state || 'none');
                 }
             }
         }
@@ -1907,6 +1907,147 @@
         if (emptyState) emptyState.style.display = safeCount > 0 ? 'none' : 'block';
     }
 
+    function refreshMaterialStateUi(openedCount = 0, lowCount = 0) {
+        const safeOpened = Math.max(0, parseInt(openedCount, 10) || 0);
+        const safeLow = Math.max(0, parseInt(lowCount, 10) || 0);
+        const openedEl = document.getElementById('material-opened-count');
+        const lowEl = document.getElementById('material-low-count');
+        const stateNote = document.getElementById('material-state-note');
+        const emptyTitle = document.getElementById('shopping-empty-title');
+        const emptyText = document.getElementById('shopping-empty-text');
+        const emptyIconWrap = document.getElementById('shopping-empty-icon-wrap');
+        const emptyIcon = document.getElementById('shopping-empty-icon');
+        const hasStateAlert = safeOpened > 0 || safeLow > 0;
+
+        if (openedEl) openedEl.textContent = String(safeOpened);
+        if (lowEl) lowEl.textContent = String(safeLow);
+        if (stateNote) stateNote.style.display = hasStateAlert ? 'block' : 'none';
+
+        if (emptyTitle) {
+            emptyTitle.textContent = hasStateAlert ? 'Košík je prázdný' : 'Všechno máme!';
+        }
+        if (emptyText) {
+            emptyText.textContent = hasStateAlert
+                ? 'Pokud něco označíš jako „Dochází“, objeví se to tady automaticky.'
+                : 'Nákupní lístek je momentálně prázdný.';
+        }
+        if (emptyIconWrap) {
+            emptyIconWrap.style.background = hasStateAlert ? '#fff7ed' : '#f1f5f9';
+        }
+        if (emptyIcon) {
+            emptyIcon.style.color = hasStateAlert ? '#f59e0b' : '#10b981';
+        }
+    }
+
+    function upsertShoppingRow(id, shoppingQty = 1) {
+        const rowsWrap = document.getElementById('shopping-list-rows');
+        if (!rowsWrap || !Array.isArray(MATERIALS_DATA)) return;
+
+        const mat = MATERIALS_DATA.find(m => m.id == id);
+        if (!mat) return;
+
+        const safeQty = Math.max(1, parseInt(shoppingQty, 10) || 1);
+        const rowHtml = `
+            <div class="acc-row-v2 shopping-row" data-id="${id}" data-qty="${safeQty}" style="padding:18px 25px;">
+                <div class="row-avatar" style="background:#fff7ed; color:#f97316;">
+                    <i data-lucide="package" style="width:18px;height:18px;"></i>
+                </div>
+                <div class="row-info">
+                    <div class="name" style="font-size:18px;">${mat.name || ''}</div>
+                    <div class="note" style="font-size:12px; text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">${mat.category || ''} (${mat.brand || 'L\'Oréal'}) • objednat <span class="shopping-qty-inline">${safeQty}</span> ks</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end;">
+                    <div style="display:flex; align-items:center; gap:8px; background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:6px 8px;">
+                        <button type="button" onclick="changeShoppingQty(${id}, -1, this)" style="border:none; background:#fff; color:#9a3412; width:24px; height:24px; border-radius:7px; cursor:pointer; font-weight:800; font-size:15px; line-height:1;">−</button>
+                        <span class="shopping-qty-value" style="min-width:22px; text-align:center; font-weight:800; color:#9a3412;">${safeQty}</span>
+                        <button type="button" onclick="changeShoppingQty(${id}, 1, this)" style="border:none; background:#fff; color:#9a3412; width:24px; height:24px; border-radius:7px; cursor:pointer; font-weight:800; font-size:15px; line-height:1;">+</button>
+                        <span style="font-size:11px; font-weight:700; color:#9a3412; text-transform:uppercase;">ks</span>
+                    </div>
+                    <button type="button" class="btn-ulozit" onclick="toggleShoppingPC(${id}, this, true)" style="background:#f1f5f9; color:var(--primary); border:none; padding:10px 20px; font-size:13px; font-weight:700; border-radius:10px; display:flex; align-items:center; gap:8px; margin:0;">
+                        <i data-lucide="check" style="width:16px;height:16px;color:#10b981;"></i> Označit jako koupené
+                    </button>
+                </div>
+            </div>
+        `;
+
+        const existing = rowsWrap.querySelector(`.shopping-row[data-id="${id}"]`);
+        if (existing) {
+            existing.outerHTML = rowHtml;
+        } else {
+            rowsWrap.insertAdjacentHTML('afterbegin', rowHtml);
+        }
+        lucide.createIcons();
+    }
+
+    function removeShoppingRow(id) {
+        const row = document.querySelector(`#shopping-list-rows .shopping-row[data-id="${id}"]`);
+        if (row) row.remove();
+    }
+
+    function getMaterialStateMeta(stockState = 'none') {
+        switch (stockState) {
+            case 'opened':
+                return { key: 'opened', short: 'ROZ', label: 'Rozdělané', title: 'Stav: Rozdělané. Kliknutím změníš.' };
+            case 'low':
+                return { key: 'low', short: 'DOCH', label: 'Dochází. Automaticky přidáno i do nákupního seznamu.', title: 'Stav: Dochází. Kliknutím změníš.' };
+            default:
+                return { key: 'none', short: '—', label: 'Bez stavu', title: 'Stav: Bez stavu. Kliknutím změníš.' };
+        }
+    }
+
+    async function cycleMaterialState(id, btn) {
+        const currentState = btn?.dataset.materialState || (MATERIALS_DATA.find(m => m.id == id)?.stock_state ?? 'none');
+        const stateOrder = ['none', 'opened', 'low'];
+        const currentIndex = Math.max(0, stateOrder.indexOf(currentState));
+        const nextState = stateOrder[(currentIndex + 1) % stateOrder.length];
+
+        try {
+            const formData = new FormData();
+            formData.append('material_id', id);
+            formData.append('mode', 'set_state');
+            formData.append('state', nextState);
+            formData.append('csrf_token', getCsrfToken());
+            const resp = await fetch('api_shopping.php', { method: 'POST', body: formData });
+            const json = await resp.json();
+            if (!json.success) throw new Error(json.error || 'Nepodařilo se upravit stav.');
+
+            document.querySelectorAll(`.btn-state-pc[data-material-id="${id}"]`).forEach(stateBtn => {
+                const meta = getMaterialStateMeta(json.stock_state);
+                stateBtn.dataset.materialState = meta.key;
+                stateBtn.className = `btn-state-pc state-${meta.key}`;
+                stateBtn.textContent = meta.short;
+                stateBtn.title = meta.title;
+            });
+
+            document.querySelectorAll(`.btn-shop-pc[data-material-id="${id}"]`).forEach(shopBtn => {
+                if (json.new_status) {
+                    shopBtn.classList.add('active');
+                    shopBtn.style.color = 'var(--gold)';
+                    shopBtn.title = 'V nákupním seznamu';
+                } else {
+                    shopBtn.classList.remove('active');
+                    shopBtn.style.color = '#cbd5e1';
+                    shopBtn.title = 'Přidat na nákupní seznam';
+                }
+            });
+
+            if (json.new_status) upsertShoppingRow(id, json.shopping_qty);
+            else removeShoppingRow(id);
+
+            refreshShoppingUi(json.list_count, json.total_qty);
+            refreshMaterialStateUi(json.opened_count, json.low_count);
+
+            const mat = MATERIALS_DATA.find(m => m.id == id);
+            if (mat) {
+                mat.stock_state = json.stock_state;
+                mat.needs_buying = json.new_status;
+                mat.shopping_qty = json.shopping_qty || mat.shopping_qty || 1;
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
     async function changeShoppingQty(id, delta, btn) {
         const row = btn?.closest('.shopping-row');
         const qtyEl = row?.querySelector('.shopping-qty-value');
@@ -1934,22 +2075,25 @@
             }
 
             refreshShoppingUi(json.list_count, json.total_qty);
+            refreshMaterialStateUi(json.opened_count, json.low_count);
 
             const mat = MATERIALS_DATA.find(m => m.id == id);
             if (mat) {
                 mat.needs_buying = json.new_status;
                 mat.shopping_qty = json.shopping_qty;
+                mat.stock_state = json.stock_state || mat.stock_state || 'none';
             }
         } catch (e) {
             console.error(e);
         }
     }
 
-    function updateShopIconPC(container, materialId, needsBuying) {
+    function updateShopIconPC(container, materialId, needsBuying, stockState = 'none') {
         if(!container) return;
-        // Styl košíku pro PC míchárnu (šedý = ok, zlatý = koupit)
+        const stateMeta = getMaterialStateMeta(stockState);
         container.innerHTML = `
-            <button type="button" class="btn-shop-pc ${needsBuying ? 'active' : ''}" 
+            <button type="button" class="btn-state-pc state-${stateMeta.key}" data-material-id="${materialId}" data-material-state="${stateMeta.key}" onclick="cycleMaterialState(${materialId}, this)" title="${stateMeta.title}">${stateMeta.short}</button>
+            <button type="button" class="btn-shop-pc ${needsBuying ? 'active' : ''}" data-material-id="${materialId}"
                     style="background:none; border:none; border-radius:5px; padding:5px; cursor:pointer; color:${needsBuying ? 'var(--gold)' : '#cbd5e1'}; display:flex; align-items:center; justify-content:center; transition: all 0.2s;"
                     onclick="toggleShoppingPC(${materialId}, this)" 
                     title="${needsBuying ? 'V nákupním seznamu' : 'Přidat na nákupní seznam'}">
@@ -1978,7 +2122,14 @@
                     btn.title = 'Přidat na nákupní seznam';
                 }
                 
+                if (json.new_status) {
+                    upsertShoppingRow(id, json.shopping_qty);
+                } else if (!isAccountingView) {
+                    removeShoppingRow(id);
+                }
+
                 refreshShoppingUi(json.list_count, json.total_qty);
+                refreshMaterialStateUi(json.opened_count, json.low_count);
 
                 // Pokud jsme přímo v nákupním seznamu, řádek plynule schováme
                 if(isAccountingView && !json.new_status) {
@@ -1996,6 +2147,7 @@
                 if(mat) {
                     mat.needs_buying = json.new_status;
                     mat.shopping_qty = json.shopping_qty;
+                    mat.stock_state = json.stock_state || mat.stock_state || 'none';
                 }
             }
         } catch(e) { console.error(e); }

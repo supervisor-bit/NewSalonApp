@@ -26,7 +26,16 @@ try {
         echo "Sloupec 'shopping_qty' už existuje.\n";
     }
 
+    if (!in_array('stock_state', $columns)) {
+        echo "Sloupec 'stock_state' chybí. Přidávám ho...\n";
+        $pdo->exec("ALTER TABLE materials ADD COLUMN stock_state VARCHAR(20) NOT NULL DEFAULT 'none'");
+        echo "Sloupec pro stav materiálu byl úspěšně přidán.\n";
+    } else {
+        echo "Sloupec 'stock_state' už existuje.\n";
+    }
+
     $pdo->exec("UPDATE materials SET shopping_qty = 1 WHERE shopping_qty IS NULL OR shopping_qty < 1");
+    $pdo->exec("UPDATE materials SET stock_state = 'none' WHERE stock_state IS NULL OR stock_state = ''");
 
     $clientColumns = $pdo->query("DESCRIBE clients")->fetchAll(PDO::FETCH_COLUMN);
     if (!in_array('is_active', $clientColumns)) {

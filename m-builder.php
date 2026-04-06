@@ -19,7 +19,7 @@ $client = $stmt->fetch(PDO::FETCH_ASSOC);
 $client_tag_list = array_values(array_filter(array_map('trim', preg_split('/[,;]+/u', (string)($client['client_tags'] ?? '')))));
 
 // Načtení materiálů
-$materials = $pdo->query("SELECT id, brand, category, name, needs_buying FROM materials WHERE is_active = 1 ORDER BY brand, category, name")->fetchAll(PDO::FETCH_ASSOC);
+$materials = $pdo->query("SELECT id, brand, category, name, needs_buying, COALESCE(shopping_qty, 1) AS shopping_qty, COALESCE(NULLIF(stock_state, ''), 'none') AS stock_state FROM materials WHERE is_active = 1 ORDER BY brand, category, name")->fetchAll(PDO::FETCH_ASSOC);
 $materialsData = $materials;
 
 // Načtení dat k předvyplnění / editaci
@@ -438,7 +438,7 @@ if ($source_id > 0) {
                             hidden.value = m.id;
                             input.value = m.category + ' ' + m.name;
                             list.style.display = 'none';
-                            updateShopIcon(wrap.nextElementSibling, m.id, m.needs_buying);
+                            updateShopIcon(wrap.nextElementSibling, m.id, m.needs_buying, m.stock_state || 'none');
                             updateMobileBowlSummary(input.closest('.m-bowl'));
                             let amountInput = wrap.nextElementSibling.nextElementSibling;
                             if(amountInput) amountInput.focus();
@@ -490,7 +490,7 @@ if ($source_id > 0) {
                         updateMobileBowlSummary(bowlDiv);
                     });
                     let matFull = materialsData.find(md => md.id == m.id);
-                    updateShopIcon(rowDiv.querySelector('.m-shop-toggle'), m.id, matFull ? matFull.needs_buying : 0);
+                    updateShopIcon(rowDiv.querySelector('.m-shop-toggle'), m.id, matFull ? matFull.needs_buying : 0, matFull ? (matFull.stock_state || 'none') : 'none');
                 });
 
                 updateMobileBowlSummary(bowlDiv);
@@ -505,10 +505,58 @@ if ($source_id > 0) {
             }
         }
 
-        function updateShopIcon(container, materialId, needsBuying) {
+        function getMobileStateMeta(stockState = 'none') {
+            switch (stockState) {
+                case 'opened': return { key: 'opened', short: 'ROZ' };
+                case 'low': return { key: 'low', short: 'DOCH' };
+                default: return { key: 'none', short: '—' };
+            }
+        }
+
+        async function cycleMaterialStateMobile(id, btn) {
+            const currentState = btn?.dataset.materialState || (materialsData.find(m => m.id == id)?.stock_state ?? 'none');
+            const stateOrder = ['none', 'opened', 'low'];
+            const nextState = stateOrder[(Math.max(0, stateOrder.indexOf(currentState)) + 1) % stateOrder.length];
+
+            try {
+                const formData = new FormData();
+                formData.append('material_id', id);
+                formData.append('mode', 'set_state');
+                formData.append('state', nextState);
+                formData.append('csrf_token', CSRF_TOKEN || '');
+                const resp = await fetch('api_shopping.php', { method: 'POST', body: formData });
+                const json = await resp.json();
+                if (!json.success) throw new Error(json.error || 'Nepodařilo se upravit stav.');
+
+                document.querySelectorAll(`.m-btn-state[data-material-id="${id}"]`).forEach(stateBtn => {
+                    const meta = getMobileStateMeta(json.stock_state);
+                    stateBtn.dataset.materialState = meta.key;
+                    stateBtn.className = `m-btn-state state-${meta.key}`;
+                    stateBtn.textContent = meta.short;
+                });
+
+                document.querySelectorAll(`.m-btn-shop[data-material-id="${id}"]`).forEach(shopBtn => {
+                    if (json.new_status) shopBtn.classList.add('active');
+                    else shopBtn.classList.remove('active');
+                });
+
+                let mat = materialsData.find(m => m.id == id);
+                if (mat) {
+                    mat.stock_state = json.stock_state;
+                    mat.needs_buying = json.new_status;
+                    mat.shopping_qty = json.shopping_qty || mat.shopping_qty || 1;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function updateShopIcon(container, materialId, needsBuying, stockState = 'none') {
             if(!container) return;
+            const stateMeta = getMobileStateMeta(stockState);
             container.innerHTML = `
-                <button type="button" class="m-btn-shop ${needsBuying ? 'active' : ''}" onclick="toggleShopping(${materialId}, this)">
+                <button type="button" class="m-btn-state state-${stateMeta.key}" data-material-id="${materialId}" data-material-state="${stateMeta.key}" onclick="cycleMaterialStateMobile(${materialId}, this)">${stateMeta.short}</button>
+                <button type="button" class="m-btn-shop ${needsBuying ? 'active' : ''}" data-material-id="${materialId}" onclick="toggleShopping(${materialId}, this)">
                     <i data-lucide="shopping-cart"></i>
                 </button>
             `;
@@ -531,6 +579,7 @@ if ($source_id > 0) {
                     if(mat) {
                         mat.needs_buying = json.new_status;
                         mat.shopping_qty = json.shopping_qty || mat.shopping_qty || 1;
+                        mat.stock_state = json.stock_state || mat.stock_state || 'none';
                     }
                 }
             } catch(e) { console.error(e); }

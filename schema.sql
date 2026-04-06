@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS `materials` (
   `category` VARCHAR(50) NOT NULL,
   `name` VARCHAR(100) NOT NULL,
   `needs_buying` TINYINT(1) DEFAULT 0,
-  `shopping_qty` INT NOT NULL DEFAULT 1
+  `shopping_qty` INT NOT NULL DEFAULT 1,
+  `stock_state` VARCHAR(20) NOT NULL DEFAULT 'none'
 );
 
 CREATE TABLE IF NOT EXISTS `visits` (

@@ -88,6 +88,10 @@ $stats_total_prod_direct = 0;
 $m_direct_now = 0;
 $top_home_products = [];
 $shopping_total_qty = 0;
+$opened_materials = [];
+$low_materials = [];
+$opened_materials_count = 0;
+$low_materials_count = 0;
 
 if (!$setup_needed) {
     $clientOrderBy = 'first_name ASC';
@@ -116,7 +120,11 @@ if (!$setup_needed) {
         if (!in_array('shopping_qty', $materialColumns, true)) {
             $pdo->exec("ALTER TABLE materials ADD COLUMN shopping_qty INT NOT NULL DEFAULT 1");
         }
+        if (!in_array('stock_state', $materialColumns, true)) {
+            $pdo->exec("ALTER TABLE materials ADD COLUMN stock_state VARCHAR(20) NOT NULL DEFAULT 'none'");
+        }
         $pdo->exec("UPDATE materials SET shopping_qty = 1 WHERE shopping_qty IS NULL OR shopping_qty < 1");
+        $pdo->exec("UPDATE materials SET stock_state = 'none' WHERE stock_state IS NULL OR stock_state = '' OR stock_state NOT IN ('none', 'opened', 'low')");
 
         $pdo->exec("CREATE TABLE IF NOT EXISTS direct_sales (
             id INT PRIMARY KEY AUTO_INCREMENT,
@@ -294,6 +302,7 @@ if (!$setup_needed) {
     // 3. Stáhnutí číselníku pro selekty s prioritou podle používání
     $m_stmt = $pdo->query("
         SELECT m.id, m.category, m.name, m.is_active, m.needs_buying, COALESCE(m.shopping_qty, 1) AS shopping_qty,
+        COALESCE(NULLIF(m.stock_state, ''), 'none') AS stock_state,
         (SELECT COUNT(*) FROM formulas f WHERE f.material_id = m.id) as use_count
         FROM materials m 
         ORDER BY use_count DESC, m.category, m.name
@@ -304,11 +313,19 @@ if (!$setup_needed) {
     $materials = array_filter($all_materials, function($m) { return $m['is_active'] == 1; });
     
     // 4. Seznam k nákupu (Hlídač)
-    $shop_stmt = $pdo->query("SELECT id, brand, category, name, COALESCE(shopping_qty, 1) AS shopping_qty FROM materials WHERE needs_buying = 1 ORDER BY brand, category, name");
+    $shop_stmt = $pdo->query("SELECT id, brand, category, name, COALESCE(shopping_qty, 1) AS shopping_qty, COALESCE(NULLIF(stock_state, ''), 'none') AS stock_state FROM materials WHERE needs_buying = 1 OR COALESCE(NULLIF(stock_state, ''), 'none') = 'low' ORDER BY brand, category, name");
     $shopping_list = $shop_stmt->fetchAll();
     $shopping_total_qty = array_sum(array_map(static function ($item) {
         return max(1, (int)($item['shopping_qty'] ?? 1));
     }, $shopping_list));
+
+    $opened_stmt = $pdo->query("SELECT id, brand, category, name FROM materials WHERE COALESCE(NULLIF(stock_state, ''), 'none') = 'opened' ORDER BY brand, category, name LIMIT 8");
+    $opened_materials = $opened_stmt->fetchAll();
+    $opened_materials_count = (int)($pdo->query("SELECT COUNT(*) FROM materials WHERE COALESCE(NULLIF(stock_state, ''), 'none') = 'opened'")->fetchColumn() ?: 0);
+
+    $low_stmt = $pdo->query("SELECT id, brand, category, name FROM materials WHERE COALESCE(NULLIF(stock_state, ''), 'none') = 'low' ORDER BY brand, category, name LIMIT 8");
+    $low_materials = $low_stmt->fetchAll();
+    $low_materials_count = (int)($pdo->query("SELECT COUNT(*) FROM materials WHERE COALESCE(NULLIF(stock_state, ''), 'none') = 'low'")->fetchColumn() ?: 0);
     
     // 4. Stahnuti produktu na doma s prioritou podle prodejů
     $direct_sales_usage_sql = $has_direct_sales

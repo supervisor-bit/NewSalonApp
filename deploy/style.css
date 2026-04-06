@@ -628,6 +628,48 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
     color: var(--primary-dark);
 }
 
+.shop-toggle-pc {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 50px !important;
+}
+
+.btn-state-pc {
+    min-width: 36px;
+    height: 22px;
+    border: none;
+    border-radius: 999px;
+    padding: 0 8px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    cursor: pointer;
+    transition: 0.2s;
+    text-transform: uppercase;
+}
+
+.btn-state-pc.state-none {
+    background: #f1f5f9;
+    color: #94a3b8;
+}
+
+.btn-state-pc.state-opened {
+    background: #fff7ed;
+    color: #c2410c;
+}
+
+.btn-state-pc.state-low {
+    background: #fff1f2;
+    color: #be123c;
+}
+
+.btn-state-pc:hover {
+    transform: translateY(-1px);
+}
+
 .btn-remove {
     background: #fee2e2;
     color: #ef4444;

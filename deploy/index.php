@@ -77,6 +77,7 @@
             'label' => trim($m['category'] . ' - ' . $m['name']),
             'needs_buying' => (int)$m['needs_buying'],
             'shopping_qty' => (int)($m['shopping_qty'] ?? 1),
+            'stock_state' => (string)($m['stock_state'] ?? 'none'),
             'use_count' => (int)$m['use_count'],
             'category' => $m['category']
         ]; 
@@ -343,22 +344,33 @@
             
             <!-- VIEW: NÁKUPNÍ SEZNAM (HLÍDAČ) -->
             <div id="acc-view-nakup" class="acc-view" style="display:none;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
                     <h3 class="sekce-nadpis" style="margin:0;">Věci k nákupu (Hlídač)</h3>
-                    <div id="shopping-counter-box" style="background:#fef2f2; border:1px solid #fee2e2; color:#be123c; padding:8px 15px; border-radius:10px; font-size:13px; font-weight:600; display:<?= empty($shopping_list) ? 'none' : 'flex' ?>; align-items:center; gap:8px; flex-wrap:wrap;">
-                        <i data-lucide="shopping-cart" style="width:16px;height:16px;"></i>
-                        Aktuálně chybí <span id="shopping-counter-val"><?= count($shopping_list) ?></span> položek • <span id="shopping-counter-qty"><?= (int)$shopping_total_qty ?></span> ks
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+                        <div style="background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; padding:8px 12px; border-radius:10px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:6px;">
+                            Rozdělané <span id="material-opened-count"><?= (int)$opened_materials_count ?></span>
+                        </div>
+                        <div style="background:#fff1f2; border:1px solid #fecdd3; color:#be123c; padding:8px 12px; border-radius:10px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:6px;">
+                            Dochází <span id="material-low-count"><?= (int)$low_materials_count ?></span>
+                        </div>
+                        <div id="shopping-counter-box" style="background:#fef2f2; border:1px solid #fee2e2; color:#be123c; padding:8px 15px; border-radius:10px; font-size:13px; font-weight:600; display:<?= empty($shopping_list) ? 'none' : 'flex' ?>; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <i data-lucide="shopping-cart" style="width:16px;height:16px;"></i>
+                            Aktuálně chybí <span id="shopping-counter-val"><?= count($shopping_list) ?></span> položek • <span id="shopping-counter-qty"><?= (int)$shopping_total_qty ?></span> ks
+                        </div>
+                        <div id="material-state-note" style="width:100%; text-align:right; color:#64748b; font-size:12px; display:<?= (($opened_materials_count + $low_materials_count) > 0) ? 'block' : 'none' ?>;">
+                            `Dochází` se přidá do nákupního seznamu automaticky, `Rozdělané` zůstává jen jako přehled.
+                        </div>
                     </div>
                 </div>
                 
                 <div class="acc-list-premium" id="shopping-list-container">
                     <!-- Prázdný stav (vždy v DOMu, zobrazen jen když je potřeba) -->
                     <div id="shopping-empty-state" style="padding:80px 40px; text-align:center; background:#fff; border-radius:24px; border:2px dashed #e2e8f0; display:<?= empty($shopping_list) ? 'block' : 'none' ?>;">
-                        <div style="background:#f1f5f9; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
-                            <i data-lucide="check-circle-2" style="width:30px; height:30px; color:#10b981;"></i>
+                        <div id="shopping-empty-icon-wrap" style="background:<?= (($opened_materials_count + $low_materials_count) > 0) ? '#fff7ed' : '#f1f5f9' ?>; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
+                            <i id="shopping-empty-icon" data-lucide="check-circle-2" style="width:30px; height:30px; color:<?= (($opened_materials_count + $low_materials_count) > 0) ? '#f59e0b' : '#10b981' ?>;"></i>
                         </div>
-                        <h4 style="font-family:'Outfit'; font-size:20px; color:var(--primary); margin-bottom:8px;">Všechno máme!</h4>
-                        <p style="color:#64748b; font-size:14px; margin:0;">Nákupní lístek je momentálně prázdný.</p>
+                        <h4 id="shopping-empty-title" style="font-family:'Outfit'; font-size:20px; color:var(--primary); margin-bottom:8px;"><?= (($opened_materials_count + $low_materials_count) > 0) ? 'Košík je prázdný' : 'Všechno máme!' ?></h4>
+                        <p id="shopping-empty-text" style="color:#64748b; font-size:14px; margin:0;"><?= (($opened_materials_count + $low_materials_count) > 0) ? 'Pokud něco označíš jako `Dochází`, objeví se to tady automaticky.' : 'Nákupní lístek je momentálně prázdný.' ?></p>
                     </div>
 
                     <!-- Seznam položek -->
