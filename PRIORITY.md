@@ -24,10 +24,15 @@ Aktualizováno: 6. 4. 2026
 2. **Jednoduchý výdej / korekce skladu**
    - rozbití, vrácení, vyhození, ruční korekce
 
-3. **Minimum kusů pro produkty na doma**
+3. **Manažerský přehled skladu**
+   - rychlý box / dashboard pro manažera
+   - kolik položek je `Dochází`, `Objednáno`, `Rozdělané`
+   - poslední příjem a co je potřeba řešit hned
+
+4. **Minimum kusů pro produkty na doma**
    - jednoduché hlídání `Dochází`
 
-4. **Export / tisk historie příjemek**
+5. **Export / tisk historie příjemek**
    - CSV nebo jednoduchý tisk dávky
 
 ---
