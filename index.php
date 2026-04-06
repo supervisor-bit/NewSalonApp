@@ -1004,7 +1004,30 @@
                 <div class="sekce catalog-history-panel" style="margin-bottom:0;">
                     <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
                         <span class="sekce-nadpis" style="margin:0;">Poslední příjemky</span>
-                        <span style="font-size:12px; color:#64748b; font-weight:700;">Seskupeno po příjemkách a dávkách</span>
+                        <span id="catalog-history-meta" style="font-size:12px; color:#64748b; font-weight:700;">Seskupeno po příjemkách a dávkách</span>
+                    </div>
+                    <div class="catalog-history-filters" style="display:grid; grid-template-columns:minmax(0,1.5fr) 160px 150px 150px auto; gap:10px; margin-bottom:14px; align-items:end;">
+                        <div>
+                            <label for="catalog-history-search" style="display:block; font-size:11px; font-weight:700; color:#64748b; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">Hledat</label>
+                            <input type="text" id="catalog-history-search" placeholder="Název, EAN, poznámka..." oninput="updateCatalogHistoryFilters()" style="height:40px; font-size:13px; border-radius:10px;">
+                        </div>
+                        <div>
+                            <label for="catalog-history-mode" style="display:block; font-size:11px; font-weight:700; color:#64748b; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">Typ</label>
+                            <select id="catalog-history-mode" onchange="updateCatalogHistoryFilters()" style="height:40px; font-size:13px; border-radius:10px;">
+                                <option value="all">Vše</option>
+                                <option value="batch">Jen dávky</option>
+                                <option value="single">Jen samostatné</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="catalog-history-date-from" style="display:block; font-size:11px; font-weight:700; color:#64748b; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">Od</label>
+                            <input type="date" id="catalog-history-date-from" onchange="updateCatalogHistoryFilters()" style="height:40px; font-size:13px; border-radius:10px;">
+                        </div>
+                        <div>
+                            <label for="catalog-history-date-to" style="display:block; font-size:11px; font-weight:700; color:#64748b; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">Do</label>
+                            <input type="date" id="catalog-history-date-to" onchange="updateCatalogHistoryFilters()" style="height:40px; font-size:13px; border-radius:10px;">
+                        </div>
+                        <button type="button" class="btn-cancel" onclick="resetCatalogHistoryFilters()" style="display:inline-flex; align-items:center; justify-content:center; margin:0; height:40px;">Vyčistit</button>
                     </div>
                     <div id="catalog-receipt-log" class="catalog-history-list" style="display:flex; flex-direction:column; gap:8px;"></div>
                 </div>

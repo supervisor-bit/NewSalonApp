@@ -1927,6 +1927,12 @@
 
     let catalogFilterMode = 'all';
     let catalogActiveSection = 'main';
+    let catalogHistoryFilters = {
+        query: '',
+        mode: 'all',
+        from: '',
+        to: ''
+    };
     let catalogScanTarget = null;
     let catalogScannerInitialized = false;
     let catalogScanBuffer = '';
@@ -2208,20 +2214,65 @@
         focusCatalogScannerCapture();
     }
 
+    function updateCatalogHistoryFilters() {
+        catalogHistoryFilters = {
+            query: String(document.getElementById('catalog-history-search')?.value || '').trim(),
+            mode: String(document.getElementById('catalog-history-mode')?.value || 'all'),
+            from: String(document.getElementById('catalog-history-date-from')?.value || ''),
+            to: String(document.getElementById('catalog-history-date-to')?.value || '')
+        };
+        renderCatalogReceiptLog();
+    }
+
+    function resetCatalogHistoryFilters() {
+        const searchInput = document.getElementById('catalog-history-search');
+        const modeInput = document.getElementById('catalog-history-mode');
+        const fromInput = document.getElementById('catalog-history-date-from');
+        const toInput = document.getElementById('catalog-history-date-to');
+
+        if (searchInput) searchInput.value = '';
+        if (modeInput) modeInput.value = 'all';
+        if (fromInput) fromInput.value = '';
+        if (toInput) toInput.value = '';
+
+        updateCatalogHistoryFilters();
+    }
+
     function renderCatalogReceiptLog() {
         const logEl = document.getElementById('catalog-receipt-log');
+        const metaEl = document.getElementById('catalog-history-meta');
         if (!logEl) return;
 
-        const entries = Array.isArray(catalogReceiptLog) ? catalogReceiptLog.slice(0, 30) : [];
-        if (!entries.length) {
-            logEl.innerHTML = `
-                <div style="padding:16px 18px; border-radius:14px; background:#f8fafc; border:1px dashed #cbd5e1; color:#475569;">
-                    <div style="font-size:13px; font-weight:800; color:#0f172a; margin-bottom:4px;">Žádné příjemky</div>
-                    <div style="font-size:12px; line-height:1.6; color:#64748b;">Jakmile přijmete zboží po jednom nebo přes dávkovou příjemku, objeví se historie tady.</div>
-                </div>
-            `;
-            return;
-        }
+        const allEntries = Array.isArray(catalogReceiptLog) ? catalogReceiptLog.slice(0, 30) : [];
+        const query = normalizeSearchText(catalogHistoryFilters.query || '');
+        const mode = catalogHistoryFilters.mode || 'all';
+        const fromValue = catalogHistoryFilters.from || '';
+        const toValue = catalogHistoryFilters.to || '';
+        const fromTime = fromValue ? new Date(`${fromValue}T00:00:00`).getTime() : null;
+        const toTime = toValue ? new Date(`${toValue}T23:59:59`).getTime() : null;
+
+        const entries = allEntries.filter(entry => {
+            const isBatch = !!String(entry.batch_code || '').trim();
+            if (mode === 'batch' && !isBatch) return false;
+            if (mode === 'single' && isBatch) return false;
+
+            const haystack = normalizeSearchText([
+                entry.item_label,
+                entry.note,
+                entry.scanned_ean,
+                entry.batch_code,
+                entry.item_type === 'material' ? 'materiál' : 'produkt'
+            ].join(' '));
+            if (query && !haystack.includes(query)) return false;
+
+            if (fromTime || toTime) {
+                const entryTime = new Date(String(entry.received_at || '').replace(' ', 'T')).getTime();
+                if (fromTime && !Number.isNaN(fromTime) && (Number.isNaN(entryTime) || entryTime < fromTime)) return false;
+                if (toTime && !Number.isNaN(toTime) && (Number.isNaN(entryTime) || entryTime > toTime)) return false;
+            }
+
+            return true;
+        });
 
         const groups = [];
         const groupMap = new Map();
@@ -2246,6 +2297,32 @@
             group.items.push(entry);
             group.totalQty += Math.max(1, parseInt(entry.qty || 1, 10) || 1);
         });
+
+        if (metaEl) {
+            metaEl.textContent = groups.length
+                ? `Zobrazeno ${groups.length} příjemek`
+                : (allEntries.length ? 'Filtr nenašel žádný záznam' : 'Seskupeno po příjemkách a dávkách');
+        }
+
+        if (!allEntries.length) {
+            logEl.innerHTML = `
+                <div style="padding:16px 18px; border-radius:14px; background:#f8fafc; border:1px dashed #cbd5e1; color:#475569;">
+                    <div style="font-size:13px; font-weight:800; color:#0f172a; margin-bottom:4px;">Žádné příjemky</div>
+                    <div style="font-size:12px; line-height:1.6; color:#64748b;">Jakmile přijmete zboží po jednom nebo přes dávkovou příjemku, objeví se historie tady.</div>
+                </div>
+            `;
+            return;
+        }
+
+        if (!groups.length) {
+            logEl.innerHTML = `
+                <div style="padding:16px 18px; border-radius:14px; background:#fff7ed; border:1px dashed #fdba74; color:#9a3412;">
+                    <div style="font-size:13px; font-weight:800; margin-bottom:4px;">Pro zadaný filtr nic nesedí</div>
+                    <div style="font-size:12px; line-height:1.6;">Zkuste upravit hledání, datum nebo přepnout typ příjmu.</div>
+                </div>
+            `;
+            return;
+        }
 
         logEl.innerHTML = groups.map(group => {
             const isBatch = !!group.batchCode;

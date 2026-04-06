@@ -424,6 +424,10 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
         padding-right: 0;
     }
 
+    .catalog-history-filters {
+        grid-template-columns: 1fr !important;
+    }
+
     #catalog-item-list,
     .catalog-history-list {
         max-height: none;
