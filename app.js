@@ -742,9 +742,9 @@
                 }
                 let activeIdx = Array.from(items).findIndex(i => i.classList.contains('ac-active'));
                 if(activeIdx > -1) {
-                    items[activeIdx].click();
+                    items[activeIdx].dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
                 } else if (items.length > 0) {
-                    items[0].click();
+                    items[0].dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
                 }
                 return;
             }
@@ -874,7 +874,8 @@
                     </div>
                 `;
                 div.className = 'ac-item' + (idx === 0 ? ' ac-active' : '');
-                div.addEventListener('click', function() {
+                div.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
                     applyProductSelection(p, true);
                 });
                 listEl.appendChild(div);
@@ -918,9 +919,9 @@
                 e.stopPropagation();
                 let activeIdx = Array.from(items).findIndex(i => i.classList.contains('ac-active'));
                 if(activeIdx > -1) {
-                    items[activeIdx].click();
+                    items[activeIdx].dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
                 } else if (items.length > 0) {
-                    items[0].click();
+                    items[0].dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
                 } else {
                     const match = findProductMatch(this.value);
                     if (match) applyProductSelection(match, true);
