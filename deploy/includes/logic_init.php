@@ -26,10 +26,11 @@ $view = isset($_GET['view']) ? $_GET['view'] : null;
 
 // MUTUALLY EXCLUSIVE VIEWS
 $show_settings = ($view === 'settings');
+$show_catalog = ($view === 'catalog');
 $show_accounting = ($view === 'accounting');
 $show_sales = ($view === 'sales');
 $show_stats = ($view === null && $range !== null && $client_id === 0);
-$show_client_karta = ($view === null && !$show_stats && !$show_settings && !$show_accounting && !$show_sales);
+$show_client_karta = ($view === null && !$show_stats && !$show_settings && !$show_catalog && !$show_accounting && !$show_sales);
 
 // Logika pro aktualizaci profilu (přesunuto z settings.php)
 if (!$setup_needed && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_profile') {
@@ -68,6 +69,9 @@ if (!$setup_needed && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['act
 
 // Chytání aktivní záložky pro nastavení
 $active_settings_tab = isset($_GET['tab']) ? $_GET['tab'] : 'profile';
+if ($active_settings_tab === 'catalog') {
+    $active_settings_tab = 'profile';
+}
 
 $active_client = null;
 $visits = [];
@@ -366,7 +370,7 @@ if (!$setup_needed) {
             LEFT JOIN materials m ON sr.item_type = 'material' AND sr.item_id = m.id
             LEFT JOIN products p ON sr.item_type = 'product' AND sr.item_id = p.id
             ORDER BY sr.received_at DESC, sr.id DESC
-            LIMIT 8
+            LIMIT 30
         ");
         $recent_receipts = $recent_receipts_stmt->fetchAll();
     } catch (Throwable $e) {

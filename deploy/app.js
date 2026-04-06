@@ -82,6 +82,10 @@
         if (window.location.search.includes('view=settings')) {
             prepniSettings(window.ACTIVE_SETTINGS_TAB || 'profile');
         }
+        if (window.location.search.includes('view=catalog')) {
+            const params = new URLSearchParams(window.location.search);
+            prepniKatalogSekci(params.get('catalog_tab') || 'main');
+        }
     });
 
     let actionDialogResolver = null;
@@ -268,6 +272,34 @@
             document.querySelectorAll('.catalog-filter-btn').forEach(chip => chip.classList.remove('active'));
             const activeCatalogBtn = document.querySelector(`.catalog-filter-btn[data-filter="${catalogFilterMode}"]`);
             if (activeCatalogBtn) activeCatalogBtn.classList.add('active');
+            renderCatalogList();
+            updateCatalogActiveTargetLabel();
+            setTimeout(() => focusCatalogScannerCapture(true), 60);
+        }
+
+        lucide.createIcons();
+    }
+
+    function prepniKatalogSekci(section = 'main') {
+        const safeSection = section === 'history' ? 'history' : 'main';
+        catalogActiveSection = safeSection;
+
+        document.querySelectorAll('#catalog-dashboard-box .catalog-subview').forEach(v => v.style.display = 'none');
+        document.querySelectorAll('#catalog-dashboard-box [id^="catalog-tab-btn-"]').forEach(b => b.classList.remove('active'));
+
+        const view = document.getElementById('catalog-view-' + safeSection);
+        const btn = document.getElementById('catalog-tab-btn-' + safeSection);
+        if (view) view.style.display = safeSection === 'history' ? 'flex' : 'block';
+        if (btn) btn.classList.add('active');
+
+        const params = new URLSearchParams(window.location.search);
+        params.set('view', 'catalog');
+        params.set('catalog_tab', safeSection);
+        window.history.replaceState({}, '', 'index.php?' + params.toString());
+
+        if (safeSection === 'history') {
+            renderCatalogReceiptLog();
+        } else {
             renderCatalogList();
             updateCatalogActiveTargetLabel();
             setTimeout(() => focusCatalogScannerCapture(true), 60);
@@ -1894,6 +1926,7 @@
     }
 
     let catalogFilterMode = 'all';
+    let catalogActiveSection = 'main';
     let catalogScanTarget = null;
     let catalogScannerInitialized = false;
     let catalogScanBuffer = '';
@@ -2121,7 +2154,7 @@
             });
 
             if (Array.isArray(json.receipts)) {
-                catalogReceiptLog = [...json.receipts.slice().reverse(), ...catalogReceiptLog].slice(0, 8);
+                catalogReceiptLog = [...json.receipts.slice().reverse(), ...catalogReceiptLog].slice(0, 30);
                 renderCatalogReceiptLog();
             }
 
@@ -2179,31 +2212,70 @@
         const logEl = document.getElementById('catalog-receipt-log');
         if (!logEl) return;
 
-        const entries = Array.isArray(catalogReceiptLog) ? catalogReceiptLog.slice(0, 8) : [];
+        const entries = Array.isArray(catalogReceiptLog) ? catalogReceiptLog.slice(0, 30) : [];
         if (!entries.length) {
-            logEl.innerHTML = '<div style="padding:12px 14px; border-radius:12px; background:#f8fafc; border:1px dashed #e2e8f0; color:#64748b; font-size:12px;">Zatím tu není žádný zaznamenaný příjem.</div>';
+            logEl.innerHTML = `
+                <div style="padding:16px 18px; border-radius:14px; background:#f8fafc; border:1px dashed #cbd5e1; color:#475569;">
+                    <div style="font-size:13px; font-weight:800; color:#0f172a; margin-bottom:4px;">Žádné příjemky</div>
+                    <div style="font-size:12px; line-height:1.6; color:#64748b;">Jakmile přijmete zboží po jednom nebo přes dávkovou příjemku, objeví se historie tady.</div>
+                </div>
+            `;
             return;
         }
 
-        logEl.innerHTML = entries.map(entry => {
-            const isMaterial = entry.item_type === 'material';
-            const typeBadge = isMaterial
-                ? '<span style="background:#fff8e6; border:1px solid rgba(212,175,55,0.28); color:#8a6b15; padding:3px 7px; border-radius:999px; font-size:10px; font-weight:800; text-transform:uppercase;">Materiál</span>'
-                : '<span style="background:#eef2ff; border:1px solid #c7d2fe; color:#4338ca; padding:3px 7px; border-radius:999px; font-size:10px; font-weight:800; text-transform:uppercase;">Produkt</span>';
-            const batchBadge = entry.batch_code
-                ? `<span style="font-size:10px; color:#2563eb; font-weight:800;">${escapeHtml(entry.batch_code)}</span>`
-                : '';
-            const note = entry.note
-                ? `<div style="font-size:11px; color:#475569; margin-top:4px;">${escapeHtml(entry.note)}</div>`
-                : '';
+        const groups = [];
+        const groupMap = new Map();
 
-            return `
-                <div style="padding:10px 12px; border-radius:12px; background:#fff; border:1px solid #e2e8f0;">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+        entries.forEach((entry, index) => {
+            const batchCode = String(entry.batch_code || '').trim();
+            const key = batchCode ? `batch:${batchCode}` : `single:${entry.id || index}`;
+
+            if (!groupMap.has(key)) {
+                const group = {
+                    key,
+                    batchCode,
+                    receivedAt: entry.received_at || '',
+                    items: [],
+                    totalQty: 0
+                };
+                groupMap.set(key, group);
+                groups.push(group);
+            }
+
+            const group = groupMap.get(key);
+            group.items.push(entry);
+            group.totalQty += Math.max(1, parseInt(entry.qty || 1, 10) || 1);
+        });
+
+        logEl.innerHTML = groups.map(group => {
+            const isBatch = !!group.batchCode;
+            const title = isBatch ? `Příjemka ${escapeHtml(group.batchCode)}` : 'Samostatný příjem';
+            const summary = isBatch
+                ? `${group.items.length} položek • ${group.totalQty} ks celkem`
+                : `${group.totalQty} ks`;
+            const modeBadge = isBatch
+                ? '<span style="display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; background:#dbeafe; border:1px solid #93c5fd; color:#1d4ed8; font-size:10px; font-weight:800; text-transform:uppercase;">Dávka</span>'
+                : '<span style="display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; background:#ccfbf1; border:1px solid #99f6e4; color:#0f766e; font-size:10px; font-weight:800; text-transform:uppercase;">Samostatně</span>';
+            const cardBorder = isBatch ? '#bfdbfe' : '#99f6e4';
+            const cardBg = isBatch ? '#f8fbff' : '#f0fdfa';
+            const cardShadow = isBatch
+                ? '0 8px 24px rgba(37,99,235,0.06)'
+                : '0 8px 22px rgba(13,148,136,0.05)';
+            const summaryColor = isBatch ? '#2563eb' : '#0f766e';
+            const itemRows = group.items.map(entry => {
+                const isMaterial = entry.item_type === 'material';
+                const typeBadge = isMaterial
+                    ? '<span style="background:#fff8e6; border:1px solid rgba(212,175,55,0.28); color:#8a6b15; padding:3px 7px; border-radius:999px; font-size:10px; font-weight:800; text-transform:uppercase;">Materiál</span>'
+                    : '<span style="background:#eef2ff; border:1px solid #c7d2fe; color:#4338ca; padding:3px 7px; border-radius:999px; font-size:10px; font-weight:800; text-transform:uppercase;">Produkt</span>';
+                const note = entry.note
+                    ? `<div style="font-size:11px; color:#475569; margin-top:3px;">${escapeHtml(entry.note)}</div>`
+                    : '';
+
+                return `
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; padding:10px 0; border-top:1px solid #eef2f7;">
                         <div style="min-width:0;">
                             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:4px;">
                                 ${typeBadge}
-                                ${batchBadge}
                                 <span style="font-size:11px; color:#64748b; font-weight:700;">× ${escapeHtml(String(entry.qty || 1))}</span>
                             </div>
                             <div style="font-size:12px; font-weight:800; color:#0f172a; line-height:1.4;">${escapeHtml(entry.item_label || 'Položka')}</div>
@@ -2211,6 +2283,22 @@
                         </div>
                         <div style="font-size:11px; color:#64748b; white-space:nowrap;">${escapeHtml(formatCatalogReceiptTime(entry.received_at || ''))}</div>
                     </div>
+                `;
+            }).join('');
+
+            return `
+                <div style="padding:12px 14px; border-radius:14px; background:${cardBg}; border:1px solid ${cardBorder}; box-shadow:${cardShadow};">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:2px;">
+                        <div>
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:3px;">
+                                ${modeBadge}
+                                <div style="font-size:13px; font-weight:800; color:#0f172a;">${title}</div>
+                            </div>
+                            <div style="font-size:11px; color:${summaryColor}; font-weight:700; margin-top:2px;">${summary}</div>
+                        </div>
+                        <div style="font-size:11px; color:#64748b; white-space:nowrap; padding:4px 8px; border-radius:999px; background:#ffffffb8; border:1px solid rgba(148,163,184,0.2);">${escapeHtml(formatCatalogReceiptTime(group.receivedAt || ''))}</div>
+                    </div>
+                    ${itemRows}
                 </div>
             `;
         }).join('');
@@ -2363,7 +2451,7 @@
 
             if (json.receipt) {
                 catalogReceiptLog.unshift(json.receipt);
-                catalogReceiptLog = catalogReceiptLog.slice(0, 8);
+                catalogReceiptLog = catalogReceiptLog.slice(0, 30);
                 renderCatalogReceiptLog();
             }
 
@@ -2545,6 +2633,7 @@
         updateCatalogActiveTargetLabel();
         updateCatalogReceiveModeUi();
         renderCatalogReceiptLog();
+        renderCatalogList();
         updateCatalogScanStatus(getCatalogDefaultStatusMessage(), 'neutral');
 
         document.addEventListener('click', function(e) {
