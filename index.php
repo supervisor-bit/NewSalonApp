@@ -1073,53 +1073,53 @@
                 <div style="display:grid; grid-template-columns: 1.15fr 0.85fr; gap:24px; align-items:start;">
                     <div class="sekce" style="margin-bottom:0;">
                         <span class="sekce-nadpis">O aplikaci Aura</span>
-                        <h3 style="margin:0 0 10px 0; font-family:'Outfit'; font-size:24px; color:#0f172a;">Aura – salonní pomocník pro každodenní provoz</h3>
+                        <h3 style="margin:0 0 10px 0; font-family:'Outfit'; font-size:24px; color:#0f172a;">Aura – přehledný salonní provoz na desktopu i mobilu</h3>
                         <p style="color:#475569; font-size:14px; line-height:1.7; margin-bottom:18px;">
-                            Aplikace slouží pro vedení klientských karet, historii návštěv, receptur, produktů na doma, nákupního seznamu a rychlé práce z mobilu přímo u míchacího pultu.
+                            Aura pomáhá s každodenním chodem salonu: klientské karty, historie návštěv, receptury v miskách, produkty na doma, rychlý prodej bez klienta, finance i hlídač materiálu na jednom místě.
                         </p>
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                             <div style="padding:14px 16px; border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0;">
                                 <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">Desktop</div>
-                                <div style="font-size:14px; font-weight:700; color:#334155;">Klienti, historie, statistiky, nákup</div>
+                                <div style="font-size:14px; font-weight:700; color:#334155;">Klienti, historie, finance, statistiky a nákup</div>
                             </div>
                             <div style="padding:14px 16px; border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0;">
                                 <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">Mobil</div>
-                                <div style="font-size:14px; font-weight:700; color:#334155;">Rychlé míchání a zápis návštěv</div>
+                                <div style="font-size:14px; font-weight:700; color:#334155;">Rychlé míchání, zápis návštěv a práce u pultu</div>
                             </div>
                             <div style="padding:14px 16px; border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0;">
-                                <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">Sdílená data</div>
-                                <div style="font-size:14px; font-weight:700; color:#334155;">Desktop i mobil pracují nad stejnou databází</div>
+                                <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">Hlídač materiálu</div>
+                                <div style="font-size:14px; font-weight:700; color:#334155;">Stavy `Rozdělané`, `Dochází` a nákupní seznam s počty</div>
                             </div>
                             <div style="padding:14px 16px; border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0;">
-                                <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">Bezpečí</div>
-                                <div style="font-size:14px; font-weight:700; color:#334155;">Přihlášení, zálohy databáze a oddělený deploy</div>
+                                <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">Nasazení</div>
+                                <div style="font-size:14px; font-weight:700; color:#334155;">Připraveno pro webhosting i Synology NAS</div>
                             </div>
                         </div>
                     </div>
 
                     <div style="display:flex; flex-direction:column; gap:18px;">
                         <div class="sekce" style="margin-bottom:0;">
-                            <span class="sekce-nadpis">Co aplikace umí</span>
+                            <span class="sekce-nadpis">Co aplikace aktuálně umí</span>
                             <ul style="margin:0; padding-left:18px; color:#475569; line-height:1.8; font-size:14px;">
-                                <li>evidence klientů a jejich historie</li>
-                                <li>ukládání receptur v miskách včetně poměru</li>
-                                <li>produkty na doma a vyúčtování návštěv</li>
-                                <li>rychlé opakování minulé receptury</li>
-                                <li>mobilní práce přes PWA rozhraní</li>
+                                <li>evidence klientů, historie návštěv a oblíbených receptur</li>
+                                <li>misky s poměrem, gramy a rychlým zopakováním minulé návštěvy</li>
+                                <li>produkty na doma včetně rychlého prodeje bez klienta</li>
+                                <li>nákupní seznam s množstvím kusů a stavy materiálu</li>
+                                <li>mobilní PWA režim pro práci přímo v salonu</li>
                             </ul>
                         </div>
 
                         <div class="sekce" style="margin-bottom:0;">
-                            <span class="sekce-nadpis">Tip pro provoz</span>
+                            <span class="sekce-nadpis">Doporučený provozní postup</span>
                             <p style="margin:0; color:#475569; font-size:14px; line-height:1.7;">
-                                Pro klidný provoz doporučujeme pravidelně stahovat zálohu databáze a po větších úpravách držet v synchronizaci i složku <code>deploy/</code>.
+                                Pravidelně stahujte zálohu databáze a po větší aktualizaci držte v synchronizaci i složku <code>deploy/</code>. Při nasazení na server pak stačí nahrát nový balík, spustit <code>migrate.php</code> a udělat tvrdý refresh.
                             </p>
                         </div>
 
                         <div class="sekce pwa-install-card" style="margin-bottom:0;">
                             <span class="sekce-nadpis">Desktop aplikace</span>
                             <p style="margin:0 0 12px 0; color:#475569; font-size:14px; line-height:1.7;">
-                                Auru si můžete na počítači nainstalovat jako samostatnou aplikaci do Docku nebo nabídky Start a otevírat ji ve vlastním okně.
+                                Auru si můžete na počítači nainstalovat jako samostatnou aplikaci do Docku nebo nabídky Start a otevírat ji ve vlastním okně bez rušivých prvků prohlížeče.
                             </p>
                             <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
                                 <button type="button" id="install-desktop-app-btn" class="btn-ulozit btn-install-app" onclick="installDesktopApp()" style="display:none; margin-top:0; width:auto;">
