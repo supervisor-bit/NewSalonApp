@@ -34,6 +34,23 @@ try {
         echo "Sloupec 'stock_state' už existuje.\n";
     }
 
+    if (!in_array('ean', $columns)) {
+        echo "Sloupec 'ean' u materiálů chybí. Přidávám ho...\n";
+        $pdo->exec("ALTER TABLE materials ADD COLUMN ean VARCHAR(64) DEFAULT NULL");
+        echo "Sloupec pro EAN u materiálů byl úspěšně přidán.\n";
+    } else {
+        echo "Sloupec 'ean' u materiálů už existuje.\n";
+    }
+
+    $productColumns = $pdo->query("DESCRIBE products")->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('ean', $productColumns)) {
+        echo "Sloupec 'ean' u produktů chybí. Přidávám ho...\n";
+        $pdo->exec("ALTER TABLE products ADD COLUMN ean VARCHAR(64) DEFAULT NULL");
+        echo "Sloupec pro EAN u produktů byl úspěšně přidán.\n";
+    } else {
+        echo "Sloupec 'ean' u produktů už existuje.\n";
+    }
+
     $pdo->exec("UPDATE materials SET shopping_qty = 1 WHERE shopping_qty IS NULL OR shopping_qty < 1");
     $pdo->exec("UPDATE materials SET stock_state = 'none' WHERE stock_state IS NULL OR stock_state = ''");
 
@@ -74,6 +91,30 @@ try {
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     echo "Tabulka pro rychlý prodej bez klienta je připravena.\n";
+
+    echo "Kontroluji tabulku stock_receipts...\n";
+    $pdo->exec("CREATE TABLE IF NOT EXISTS stock_receipts (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        batch_code VARCHAR(64) DEFAULT NULL,
+        item_type VARCHAR(20) NOT NULL,
+        item_id INT NOT NULL,
+        quantity INT NOT NULL DEFAULT 1,
+        scanned_ean VARCHAR(64) DEFAULT NULL,
+        note VARCHAR(255) DEFAULT NULL,
+        received_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_receipts_batch_code (batch_code),
+        INDEX idx_receipts_type_item (item_type, item_id),
+        INDEX idx_receipts_received_at (received_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    $receiptColumns = $pdo->query("DESCRIBE stock_receipts")->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('batch_code', $receiptColumns)) {
+        echo "Sloupec 'batch_code' u příjmu zboží chybí. Přidávám ho...\n";
+        $pdo->exec("ALTER TABLE stock_receipts ADD COLUMN batch_code VARCHAR(64) DEFAULT NULL AFTER id");
+        echo "Sloupec pro dávkovou příjemku byl úspěšně přidán.\n";
+    } else {
+        echo "Sloupec 'batch_code' u příjmu zboží už existuje.\n";
+    }
+    echo "Tabulka pro jednoduchý příjem zboží je připravena.\n";
     
     echo "Povedlo se! Aplikace by měla být zase funkční.\n";
 } catch (PDOException $e) {

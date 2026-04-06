@@ -92,6 +92,7 @@ $opened_materials = [];
 $low_materials = [];
 $opened_materials_count = 0;
 $low_materials_count = 0;
+$recent_receipts = [];
 
 if (!$setup_needed) {
     $clientOrderBy = 'first_name ASC';
@@ -123,8 +124,16 @@ if (!$setup_needed) {
         if (!in_array('stock_state', $materialColumns, true)) {
             $pdo->exec("ALTER TABLE materials ADD COLUMN stock_state VARCHAR(20) NOT NULL DEFAULT 'none'");
         }
+        if (!in_array('ean', $materialColumns, true)) {
+            $pdo->exec("ALTER TABLE materials ADD COLUMN ean VARCHAR(64) DEFAULT NULL");
+        }
         $pdo->exec("UPDATE materials SET shopping_qty = 1 WHERE shopping_qty IS NULL OR shopping_qty < 1");
         $pdo->exec("UPDATE materials SET stock_state = 'none' WHERE stock_state IS NULL OR stock_state = '' OR stock_state NOT IN ('none', 'opened', 'low')");
+
+        $productColumns = $pdo->query("SHOW COLUMNS FROM products")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('ean', $productColumns, true)) {
+            $pdo->exec("ALTER TABLE products ADD COLUMN ean VARCHAR(64) DEFAULT NULL");
+        }
 
         $pdo->exec("CREATE TABLE IF NOT EXISTS direct_sales (
             id INT PRIMARY KEY AUTO_INCREMENT,
@@ -136,6 +145,23 @@ if (!$setup_needed) {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        $pdo->exec("CREATE TABLE IF NOT EXISTS stock_receipts (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            batch_code VARCHAR(64) DEFAULT NULL,
+            item_type VARCHAR(20) NOT NULL,
+            item_id INT NOT NULL,
+            quantity INT NOT NULL DEFAULT 1,
+            scanned_ean VARCHAR(64) DEFAULT NULL,
+            note VARCHAR(255) DEFAULT NULL,
+            received_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_receipts_batch_code (batch_code),
+            INDEX idx_receipts_type_item (item_type, item_id),
+            INDEX idx_receipts_received_at (received_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        $receiptColumns = $pdo->query("SHOW COLUMNS FROM stock_receipts")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('batch_code', $receiptColumns, true)) {
+            $pdo->exec("ALTER TABLE stock_receipts ADD COLUMN batch_code VARCHAR(64) DEFAULT NULL AFTER id");
+        }
         $has_direct_sales = true;
 
         $clientOrderBy = 'COALESCE(c.is_favorite, 0) DESC, first_name ASC';
@@ -301,8 +327,9 @@ if (!$setup_needed) {
 
     // 3. Stáhnutí číselníku pro selekty s prioritou podle používání
     $m_stmt = $pdo->query("
-        SELECT m.id, m.category, m.name, m.is_active, m.needs_buying, COALESCE(m.shopping_qty, 1) AS shopping_qty,
+        SELECT m.id, m.brand, m.category, m.name, m.is_active, m.needs_buying, COALESCE(m.shopping_qty, 1) AS shopping_qty,
         COALESCE(NULLIF(m.stock_state, ''), 'none') AS stock_state,
+        COALESCE(NULLIF(m.ean, ''), '') AS ean,
         (SELECT COUNT(*) FROM formulas f WHERE f.material_id = m.id) as use_count
         FROM materials m 
         ORDER BY use_count DESC, m.category, m.name
@@ -326,6 +353,25 @@ if (!$setup_needed) {
     $low_stmt = $pdo->query("SELECT id, brand, category, name FROM materials WHERE COALESCE(NULLIF(stock_state, ''), 'none') = 'low' ORDER BY brand, category, name LIMIT 8");
     $low_materials = $low_stmt->fetchAll();
     $low_materials_count = (int)($pdo->query("SELECT COUNT(*) FROM materials WHERE COALESCE(NULLIF(stock_state, ''), 'none') = 'low'")->fetchColumn() ?: 0);
+
+    try {
+        $recent_receipts_stmt = $pdo->query(" 
+            SELECT sr.id, sr.batch_code, sr.item_type, sr.item_id, sr.quantity, sr.scanned_ean, sr.note,
+                   DATE_FORMAT(sr.received_at, '%Y-%m-%d %H:%i:%s') AS received_at,
+                   CASE 
+                        WHEN sr.item_type = 'material' THEN TRIM(CONCAT(COALESCE(m.brand, ''), ' ', COALESCE(m.category, ''), ' ', COALESCE(m.name, '')))
+                        ELSE TRIM(CONCAT(COALESCE(p.brand, ''), ' ', COALESCE(p.name, '')))
+                   END AS item_label
+            FROM stock_receipts sr
+            LEFT JOIN materials m ON sr.item_type = 'material' AND sr.item_id = m.id
+            LEFT JOIN products p ON sr.item_type = 'product' AND sr.item_id = p.id
+            ORDER BY sr.received_at DESC, sr.id DESC
+            LIMIT 8
+        ");
+        $recent_receipts = $recent_receipts_stmt->fetchAll();
+    } catch (Throwable $e) {
+        $recent_receipts = [];
+    }
     
     // 4. Stahnuti produktu na doma s prioritou podle prodejů
     $direct_sales_usage_sql = $has_direct_sales
@@ -333,7 +379,7 @@ if (!$setup_needed) {
         : "0";
 
     $pr_stmt = $pdo->query("
-        SELECT p.id, p.brand, p.name, p.price, p.is_active, 
+        SELECT p.id, p.brand, p.name, p.price, p.is_active, COALESCE(NULLIF(p.ean, ''), '') AS ean,
         (
             COALESCE((SELECT SUM(vp.amount) FROM visit_products vp WHERE vp.product_id = p.id), 0)
             +

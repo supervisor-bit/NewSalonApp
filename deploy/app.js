@@ -78,6 +78,10 @@
         updateDesktopInstallUi();
         initDirectSaleAutocomplete();
         initDirectSaleFormGuards();
+        initCatalogManager();
+        if (window.location.search.includes('view=settings')) {
+            prepniSettings(window.ACTIVE_SETTINGS_TAB || 'profile');
+        }
     });
 
     let actionDialogResolver = null;
@@ -245,18 +249,30 @@
     }
 
     function prepniSettings(tabId) {
-        // Schovat všechny pohledy v nastavení
+        const safeTab = tabId || 'profile';
         document.querySelectorAll('#settings-dashboard-box .acc-view').forEach(v => v.style.display = 'none');
-        // Deaktivovat všechna tlačítka
         document.querySelectorAll('#settings-dashboard-box .acc-tab-btn-v2').forEach(b => b.classList.remove('active'));
-        
-        // Aktivovat vybraný
-        const view = document.getElementById('set-view-' + tabId);
-        const btn = document.getElementById('set-tab-btn-' + tabId);
-        
-        if(view) view.style.display = 'block';
-        if(btn) btn.classList.add('active');
-        
+
+        const view = document.getElementById('set-view-' + safeTab);
+        const btn = document.getElementById('set-tab-btn-' + safeTab);
+
+        if (view) view.style.display = 'block';
+        if (btn) btn.classList.add('active');
+
+        const settingsBox = document.getElementById('settings-dashboard-box');
+        if (settingsBox && settingsBox.style.display !== 'none') {
+            window.history.replaceState({}, '', 'index.php?view=settings&tab=' + safeTab);
+        }
+
+        if (safeTab === 'catalog') {
+            document.querySelectorAll('.catalog-filter-btn').forEach(chip => chip.classList.remove('active'));
+            const activeCatalogBtn = document.querySelector(`.catalog-filter-btn[data-filter="${catalogFilterMode}"]`);
+            if (activeCatalogBtn) activeCatalogBtn.classList.add('active');
+            renderCatalogList();
+            updateCatalogActiveTargetLabel();
+            setTimeout(() => focusCatalogScannerCapture(true), 60);
+        }
+
         lucide.createIcons();
     }
 
@@ -1877,6 +1893,715 @@
         });
     }
 
+    let catalogFilterMode = 'all';
+    let catalogScanTarget = null;
+    let catalogScannerInitialized = false;
+    let catalogScanBuffer = '';
+    let catalogScanTimer = null;
+    let catalogLastKeyTime = 0;
+    let catalogReceiveMode = false;
+    let catalogBatchMode = false;
+    let catalogBatchQueue = [];
+    let catalogReceiptLog = Array.isArray(window.RECENT_RECEIPTS_DATA) ? [...window.RECENT_RECEIPTS_DATA] : [];
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function normalizeCatalogEan(value = '') {
+        return String(value || '').replace(/[^0-9A-Za-z]/g, '').trim();
+    }
+
+    function getCatalogItems() {
+        return Array.isArray(window.CATALOG_DATA) ? window.CATALOG_DATA : [];
+    }
+
+    function formatCatalogReceiptTime(value = '') {
+        if (!value) return '';
+        const parsed = new Date(String(value).replace(' ', 'T'));
+        if (Number.isNaN(parsed.getTime())) return String(value);
+        return parsed.toLocaleString('cs-CZ', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function getCatalogDefaultStatusMessage() {
+        if (catalogBatchMode) {
+            return 'Dávková příjemka je <b>aktivní</b>. Pípejte více položek a pak klikněte na <b>Uložit příjemku</b>.';
+        }
+        if (catalogReceiveMode) {
+            return 'Režim příjmu je <b>zapnutý</b>. Stačí pípat známé EAN a příjem se rovnou uloží.';
+        }
+        return 'Čtečka je připravená. Vyberte položku a klikněte na <b>Načíst EAN</b>.';
+    }
+
+    function updateCatalogScanStatus(message, type = 'neutral') {
+        const el = document.getElementById('catalog-scan-status');
+        if (!el) return;
+
+        const palette = {
+            neutral: { bg: '#f8fafc', border: '#e2e8f0', color: '#334155' },
+            success: { bg: '#ecfdf5', border: '#a7f3d0', color: '#065f46' },
+            warning: { bg: '#fff7ed', border: '#fdba74', color: '#9a3412' },
+            danger: { bg: '#fff1f2', border: '#fecdd3', color: '#be123c' }
+        };
+        const current = palette[type] || palette.neutral;
+        el.style.background = current.bg;
+        el.style.border = `1px solid ${current.border}`;
+        el.style.color = current.color;
+        el.innerHTML = message;
+    }
+
+    function updateCatalogActiveTargetLabel() {
+        const el = document.getElementById('catalog-active-target');
+        if (!el) return;
+
+        if (!catalogScanTarget) {
+            el.innerHTML = catalogReceiveMode
+                ? 'Režim příjmu je <b>aktivní</b>. Napípejte známý EAN nebo klikněte u položky na <b>Příjem</b>.'
+                : 'Není vybraná žádná položka.';
+            return;
+        }
+
+        el.innerHTML = `Aktivní párování: <b>${escapeHtml(catalogScanTarget.label || 'Vybraná položka')}</b>. Stačí teď rovnou napípat EAN.`;
+    }
+
+    function updateCatalogReceiveModeUi() {
+        const statusEl = document.getElementById('catalog-receive-mode-status');
+        const toggleBtn = document.getElementById('catalog-receive-toggle-btn');
+        const batchBtn = document.getElementById('catalog-batch-toggle-btn');
+        const batchPanel = document.getElementById('catalog-batch-panel');
+
+        if (statusEl) {
+            const isAnyModeActive = catalogReceiveMode || catalogBatchMode;
+            statusEl.style.background = isAnyModeActive ? '#ecfdf5' : '#f8fafc';
+            statusEl.style.border = `1px solid ${isAnyModeActive ? '#a7f3d0' : '#e2e8f0'}`;
+            statusEl.style.color = isAnyModeActive ? '#065f46' : '#334155';
+            statusEl.innerHTML = catalogBatchMode
+                ? 'Dávková příjemka je <b>zapnutá</b>. Pípejte položky do jednoho seznamu.'
+                : (catalogReceiveMode
+                    ? 'Příjem je <b>zapnutý</b>. Napípáním známého EAN se rovnou uloží přijaté množství.'
+                    : 'Režim příjmu je vypnutý.');
+        }
+
+        if (toggleBtn) {
+            toggleBtn.textContent = catalogReceiveMode ? 'Příjem zapnutý' : 'Zapnout příjem';
+            toggleBtn.style.background = catalogReceiveMode ? '#0f766e' : '';
+            toggleBtn.style.borderColor = catalogReceiveMode ? '#0f766e' : '';
+        }
+
+        if (batchBtn) {
+            batchBtn.textContent = catalogBatchMode ? 'Dávka aktivní' : 'Dávková příjemka';
+            batchBtn.style.background = catalogBatchMode ? '#2563eb' : '';
+            batchBtn.style.borderColor = catalogBatchMode ? '#2563eb' : '';
+            batchBtn.style.color = catalogBatchMode ? '#fff' : '';
+        }
+
+        if (batchPanel) {
+            batchPanel.style.display = catalogBatchMode ? 'block' : 'none';
+        }
+    }
+
+    function renderCatalogBatchQueue() {
+        const listEl = document.getElementById('catalog-batch-list');
+        const statusEl = document.getElementById('catalog-batch-status');
+        if (!listEl || !statusEl) return;
+
+        if (!catalogBatchMode) {
+            statusEl.innerHTML = 'Dávkový režim je vypnutý.';
+            listEl.innerHTML = '';
+            return;
+        }
+
+        if (!catalogBatchQueue.length) {
+            statusEl.innerHTML = 'Dávková příjemka je aktivní. Začněte pípat položky.';
+            listEl.innerHTML = '<div style="padding:10px 12px; border-radius:12px; background:#f8fafc; border:1px dashed #cbd5e1; color:#64748b; font-size:12px;">Seznam je zatím prázdný.</div>';
+            return;
+        }
+
+        const totalQty = catalogBatchQueue.reduce((sum, row) => sum + Number(row.qty || 0), 0);
+        statusEl.innerHTML = `V dávce je <b>${catalogBatchQueue.length}</b> položek / <b>${totalQty}</b> ks.`;
+        listEl.innerHTML = catalogBatchQueue.map((row, index) => `
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 12px; border-radius:12px; background:#f8fafc; border:1px solid #dbeafe;">
+                <div style="min-width:0;">
+                    <div style="font-size:12px; font-weight:800; color:#0f172a;">${escapeHtml(row.item_label || 'Položka')}</div>
+                    <div style="font-size:11px; color:#64748b; margin-top:2px;">${escapeHtml(row.item_type === 'material' ? 'Materiál' : 'Produkt')} • ${escapeHtml(row.scanned_ean || '')}</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:12px; font-weight:800; color:#2563eb;">× ${escapeHtml(String(row.qty || 1))}</span>
+                    <button type="button" class="btn-menu" onclick="removeCatalogBatchItem(${index})" style="padding:8px 10px; border-radius:10px;" title="Odebrat"><i data-lucide="x" style="width:14px; height:14px;"></i></button>
+                </div>
+            </div>
+        `).join('');
+        lucide.createIcons();
+    }
+
+    function clearCatalogBatchQueue() {
+        catalogBatchQueue = [];
+        renderCatalogBatchQueue();
+        updateCatalogScanStatus(getCatalogDefaultStatusMessage(), catalogBatchMode ? 'success' : 'neutral');
+    }
+
+    function removeCatalogBatchItem(index) {
+        catalogBatchQueue.splice(index, 1);
+        renderCatalogBatchQueue();
+    }
+
+    function addCatalogBatchItem(item, options = {}) {
+        if (!item) return;
+        const payload = {
+            ...getCatalogReceivePayload(),
+            ...options
+        };
+        const qty = Math.max(1, Math.min(99, parseInt(payload.qty ?? 1, 10) || 1));
+        const note = String(payload.note || '').trim().slice(0, 255);
+        const scannedEan = normalizeCatalogEan(payload.scannedEan || item.ean || '');
+        const existing = catalogBatchQueue.find(row => row.item_type === item.type && String(row.item_id) === String(item.id) && String(row.note || '') === note);
+
+        if (existing) {
+            existing.qty += qty;
+            if (scannedEan) existing.scanned_ean = scannedEan;
+        } else {
+            catalogBatchQueue.push({
+                item_type: item.type,
+                item_id: item.id,
+                item_label: `${item.brand || ''} ${item.group ? item.group + ' ' : ''}${item.name || ''}`.trim(),
+                qty,
+                note,
+                scanned_ean: scannedEan
+            });
+        }
+
+        renderCatalogBatchQueue();
+        updateCatalogScanStatus(`Přidáno do dávky: <b>${escapeHtml(item.name || '')}</b> × ${escapeHtml(String(qty))}.`, 'success');
+        focusCatalogRow(item.type, item.id);
+        focusCatalogScannerCapture(true);
+    }
+
+    async function saveCatalogBatchReceipt() {
+        if (!catalogBatchQueue.length) {
+            updateCatalogScanStatus('Dávková příjemka je zatím prázdná.', 'warning');
+            return;
+        }
+
+        const batchCode = `PRJ-${new Date().toISOString().slice(0,19).replace(/[-:T]/g, '').slice(0,14)}`;
+        try {
+            const formData = new FormData();
+            formData.append('action', 'receive_batch');
+            formData.append('batch_code', batchCode);
+            formData.append('items_json', JSON.stringify(catalogBatchQueue));
+            formData.append('csrf_token', getCsrfToken());
+
+            const resp = await fetch('api_catalog.php', { method: 'POST', body: formData });
+            const json = await resp.json();
+            if (!json.success) throw new Error(json.error || 'Dávkovou příjemku se nepodařilo uložit.');
+
+            catalogBatchQueue.forEach(row => {
+                if (row.item_type === 'material') {
+                    const item = getCatalogItems().find(entry => entry.type === 'material' && String(entry.id) === String(row.item_id));
+                    if (item) {
+                        item.stock_state = 'none';
+                        item.needs_buying = 0;
+                    }
+                    const mat = MATERIALS_DATA.find(entry => String(entry.id) === String(row.item_id));
+                    if (mat) {
+                        mat.stock_state = 'none';
+                        mat.needs_buying = 0;
+                    }
+                    removeShoppingRow(row.item_id);
+                }
+            });
+
+            if (Array.isArray(json.receipts)) {
+                catalogReceiptLog = [...json.receipts.slice().reverse(), ...catalogReceiptLog].slice(0, 8);
+                renderCatalogReceiptLog();
+            }
+
+            refreshShoppingUi(json.list_count, json.total_qty);
+            refreshMaterialStateUi(json.opened_count, json.low_count);
+            renderCatalogList();
+            catalogBatchQueue = [];
+            renderCatalogBatchQueue();
+            updateCatalogScanStatus(`Dávková příjemka <b>${escapeHtml(json.batch_code || batchCode)}</b> byla uložena.`, 'success');
+            focusCatalogScannerCapture(true);
+        } catch (err) {
+            console.error(err);
+            updateCatalogScanStatus(err?.message || 'Dávkovou příjemku se nepodařilo uložit.', 'danger');
+        }
+    }
+
+    function toggleCatalogBatchMode(forceState) {
+        const nextState = typeof forceState === 'boolean' ? forceState : !catalogBatchMode;
+        catalogBatchMode = nextState;
+        if (catalogBatchMode) {
+            catalogReceiveMode = false;
+            catalogScanTarget = null;
+        }
+        updateCatalogActiveTargetLabel();
+        updateCatalogReceiveModeUi();
+        renderCatalogBatchQueue();
+        updateCatalogScanStatus(getCatalogDefaultStatusMessage(), catalogBatchMode ? 'success' : (catalogReceiveMode ? 'success' : 'neutral'));
+        focusCatalogScannerCapture(true);
+    }
+
+    function focusCatalogScannerCapture(force = false) {
+        const input = document.getElementById('catalog-scanner-capture');
+        const view = document.getElementById('set-view-catalog');
+        if (!input || !view || view.style.display === 'none') return;
+
+        const active = document.activeElement;
+        const isTypingElsewhere = active
+            && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName)
+            && active !== input
+            && active.id !== 'catalog-search-input';
+
+        if (isTypingElsewhere && !force) return;
+        input.focus({ preventScroll: true });
+    }
+
+    function setCatalogFilter(filter, btn) {
+        catalogFilterMode = filter || 'all';
+        document.querySelectorAll('.catalog-filter-btn').forEach(chip => chip.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        renderCatalogList();
+        focusCatalogScannerCapture();
+    }
+
+    function renderCatalogReceiptLog() {
+        const logEl = document.getElementById('catalog-receipt-log');
+        if (!logEl) return;
+
+        const entries = Array.isArray(catalogReceiptLog) ? catalogReceiptLog.slice(0, 8) : [];
+        if (!entries.length) {
+            logEl.innerHTML = '<div style="padding:12px 14px; border-radius:12px; background:#f8fafc; border:1px dashed #e2e8f0; color:#64748b; font-size:12px;">Zatím tu není žádný zaznamenaný příjem.</div>';
+            return;
+        }
+
+        logEl.innerHTML = entries.map(entry => {
+            const isMaterial = entry.item_type === 'material';
+            const typeBadge = isMaterial
+                ? '<span style="background:#fff8e6; border:1px solid rgba(212,175,55,0.28); color:#8a6b15; padding:3px 7px; border-radius:999px; font-size:10px; font-weight:800; text-transform:uppercase;">Materiál</span>'
+                : '<span style="background:#eef2ff; border:1px solid #c7d2fe; color:#4338ca; padding:3px 7px; border-radius:999px; font-size:10px; font-weight:800; text-transform:uppercase;">Produkt</span>';
+            const batchBadge = entry.batch_code
+                ? `<span style="font-size:10px; color:#2563eb; font-weight:800;">${escapeHtml(entry.batch_code)}</span>`
+                : '';
+            const note = entry.note
+                ? `<div style="font-size:11px; color:#475569; margin-top:4px;">${escapeHtml(entry.note)}</div>`
+                : '';
+
+            return `
+                <div style="padding:10px 12px; border-radius:12px; background:#fff; border:1px solid #e2e8f0;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                        <div style="min-width:0;">
+                            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:4px;">
+                                ${typeBadge}
+                                ${batchBadge}
+                                <span style="font-size:11px; color:#64748b; font-weight:700;">× ${escapeHtml(String(entry.qty || 1))}</span>
+                            </div>
+                            <div style="font-size:12px; font-weight:800; color:#0f172a; line-height:1.4;">${escapeHtml(entry.item_label || 'Položka')}</div>
+                            ${note}
+                        </div>
+                        <div style="font-size:11px; color:#64748b; white-space:nowrap;">${escapeHtml(formatCatalogReceiptTime(entry.received_at || ''))}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function toggleCatalogReceiveMode(forceState) {
+        const nextState = typeof forceState === 'boolean' ? forceState : !catalogReceiveMode;
+        catalogReceiveMode = nextState;
+
+        if (catalogReceiveMode) {
+            catalogBatchMode = false;
+            catalogScanTarget = null;
+            catalogScanBuffer = '';
+            clearTimeout(catalogScanTimer);
+        }
+
+        updateCatalogActiveTargetLabel();
+        updateCatalogReceiveModeUi();
+        renderCatalogBatchQueue();
+        updateCatalogScanStatus(getCatalogDefaultStatusMessage(), (catalogReceiveMode || catalogBatchMode) ? 'success' : 'neutral');
+        focusCatalogScannerCapture(true);
+    }
+
+    function getCatalogReceivePayload() {
+        const qtyInput = document.getElementById('catalog-receive-qty');
+        const noteInput = document.getElementById('catalog-receive-note');
+        const qty = Math.max(1, Math.min(99, parseInt(qtyInput?.value || '1', 10) || 1));
+        if (qtyInput) qtyInput.value = String(qty);
+        return {
+            qty,
+            note: String(noteInput?.value || '').trim()
+        };
+    }
+
+    function armCatalogScan(itemType, itemId) {
+        const item = getCatalogItems().find(entry => entry.type === itemType && String(entry.id) === String(itemId));
+        if (!item) return;
+
+        catalogReceiveMode = false;
+        updateCatalogReceiveModeUi();
+        catalogScanBuffer = '';
+        clearTimeout(catalogScanTimer);
+        catalogScanTarget = {
+            type: itemType,
+            id: itemId,
+            label: `${item.brand || ''} ${item.name || ''}`.trim()
+        };
+        updateCatalogActiveTargetLabel();
+        updateCatalogScanStatus(`Čtečka je připravená pro položku <b>${escapeHtml(catalogScanTarget.label)}</b>. Napípejte EAN.`, 'warning');
+        focusCatalogScannerCapture(true);
+    }
+
+    function clearCatalogScanTarget() {
+        catalogScanBuffer = '';
+        clearTimeout(catalogScanTimer);
+        catalogScanTarget = null;
+        updateCatalogActiveTargetLabel();
+        updateCatalogScanStatus(getCatalogDefaultStatusMessage(), catalogReceiveMode ? 'success' : 'neutral');
+        focusCatalogScannerCapture(true);
+    }
+
+    function focusCatalogRow(itemType, itemId) {
+        const row = document.querySelector(`.catalog-row[data-item-type="${itemType}"][data-item-id="${itemId}"]`);
+        if (!row) return;
+        row.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.35)';
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => { row.style.boxShadow = ''; }, 1600);
+    }
+
+    async function saveCatalogEan(itemType, itemId, ean = '') {
+        const normalized = normalizeCatalogEan(ean);
+
+        try {
+            const formData = new FormData();
+            formData.append('action', 'save_ean');
+            formData.append('item_type', itemType);
+            formData.append('item_id', String(itemId));
+            formData.append('ean', normalized);
+            formData.append('csrf_token', getCsrfToken());
+
+            const resp = await fetch('api_catalog.php', { method: 'POST', body: formData });
+            const json = await resp.json();
+            if (!json.success) throw new Error(json.error || 'EAN se nepodařilo uložit.');
+
+            const item = getCatalogItems().find(entry => entry.type === itemType && String(entry.id) === String(itemId));
+            if (item) item.ean = json.ean || '';
+
+            catalogScanTarget = null;
+            updateCatalogActiveTargetLabel();
+            renderCatalogList();
+            focusCatalogRow(itemType, itemId);
+            updateCatalogScanStatus(
+                json.ean
+                    ? `EAN <b>${escapeHtml(json.ean)}</b> byl uložen k položce <b>${escapeHtml(json.label || '')}</b>.`
+                    : `EAN byl u položky <b>${escapeHtml(json.label || '')}</b> vymazán.`,
+                'success'
+            );
+            focusCatalogScannerCapture(true);
+        } catch (err) {
+            console.error(err);
+            updateCatalogScanStatus(err?.message || 'Uložení EAN se nepodařilo.', 'danger');
+        }
+    }
+
+    async function receiveCatalogItem(itemType, itemId, options = {}) {
+        const payload = {
+            ...getCatalogReceivePayload(),
+            ...options
+        };
+        const qty = Math.max(1, Math.min(99, parseInt(payload.qty ?? 1, 10) || 1));
+        const note = String(payload.note || '').trim().slice(0, 255);
+        const scannedEan = normalizeCatalogEan(payload.scannedEan || '');
+
+        try {
+            const formData = new FormData();
+            formData.append('action', 'receive_item');
+            formData.append('item_type', itemType);
+            formData.append('item_id', String(itemId));
+            formData.append('quantity', String(qty));
+            formData.append('note', note);
+            formData.append('scanned_ean', scannedEan);
+            formData.append('csrf_token', getCsrfToken());
+
+            const resp = await fetch('api_catalog.php', { method: 'POST', body: formData });
+            const json = await resp.json();
+            if (!json.success) throw new Error(json.error || 'Příjem se nepodařilo uložit.');
+
+            const item = getCatalogItems().find(entry => entry.type === itemType && String(entry.id) === String(itemId));
+            if (item && itemType === 'material') {
+                item.stock_state = json.stock_state || 'none';
+                item.needs_buying = Number(json.new_status || 0);
+            }
+
+            const mat = itemType === 'material' ? MATERIALS_DATA.find(entry => String(entry.id) === String(itemId)) : null;
+            if (mat) {
+                mat.stock_state = json.stock_state || 'none';
+                mat.needs_buying = Number(json.new_status || 0);
+            }
+
+            if (itemType === 'material') {
+                removeShoppingRow(itemId);
+            }
+
+            if (typeof json.list_count !== 'undefined' && typeof json.total_qty !== 'undefined') {
+                refreshShoppingUi(json.list_count, json.total_qty);
+            }
+            if (typeof json.opened_count !== 'undefined' && typeof json.low_count !== 'undefined') {
+                refreshMaterialStateUi(json.opened_count, json.low_count);
+            }
+
+            if (json.receipt) {
+                catalogReceiptLog.unshift(json.receipt);
+                catalogReceiptLog = catalogReceiptLog.slice(0, 8);
+                renderCatalogReceiptLog();
+            }
+
+            renderCatalogList();
+            focusCatalogRow(itemType, itemId);
+            updateCatalogScanStatus(
+                `Příjem uložen: <b>${escapeHtml(json.label || '')}</b> × ${escapeHtml(String(json.qty || qty))}.${itemType === 'material' ? ' Materiál byl zároveň stažený z nákupu.' : ''}`,
+                'success'
+            );
+            focusCatalogScannerCapture(true);
+        } catch (err) {
+            console.error(err);
+            updateCatalogScanStatus(err?.message || 'Příjem se nepodařilo uložit.', 'danger');
+        }
+    }
+
+    function handleCatalogScanValue(rawValue) {
+        const normalized = normalizeCatalogEan(rawValue);
+        if (normalized.length < 6) return;
+
+        if (catalogScanTarget) {
+            saveCatalogEan(catalogScanTarget.type, catalogScanTarget.id, normalized);
+            return;
+        }
+
+        const found = getCatalogItems().find(item => normalizeCatalogEan(item.ean) === normalized);
+
+        if (catalogBatchMode) {
+            if (found) {
+                const payload = getCatalogReceivePayload();
+                addCatalogBatchItem(found, {
+                    qty: payload.qty,
+                    note: payload.note,
+                    scannedEan: normalized
+                });
+            } else {
+                updateCatalogScanStatus(`EAN <b>${escapeHtml(normalized)}</b> v katalogu ještě není. Nejdřív ho prosím spárujte přes <b>Načíst EAN</b>.`, 'warning');
+            }
+            return;
+        }
+
+        if (catalogReceiveMode) {
+            if (found) {
+                const payload = getCatalogReceivePayload();
+                receiveCatalogItem(found.type, found.id, {
+                    qty: payload.qty,
+                    note: payload.note,
+                    scannedEan: normalized
+                });
+            } else {
+                updateCatalogScanStatus(`EAN <b>${escapeHtml(normalized)}</b> v katalogu ještě není. Nejdřív ho prosím spárujte přes <b>Načíst EAN</b>.`, 'warning');
+            }
+            return;
+        }
+
+        const searchInput = document.getElementById('catalog-search-input');
+        if (searchInput) {
+            searchInput.value = normalized;
+        }
+        renderCatalogList();
+
+        if (found) {
+            focusCatalogRow(found.type, found.id);
+            updateCatalogScanStatus(`EAN <b>${escapeHtml(normalized)}</b> už patří k položce <b>${escapeHtml((found.brand || '') + ' ' + (found.name || ''))}</b>.`, 'success');
+        } else {
+            updateCatalogScanStatus(`EAN <b>${escapeHtml(normalized)}</b> zatím není přiřazený. Klikněte u správné položky na <b>Načíst EAN</b> a napípejte ho znovu.`, 'warning');
+        }
+    }
+
+    function renderCatalogList() {
+        const listEl = document.getElementById('catalog-item-list');
+        const badgesEl = document.getElementById('catalog-summary-badges');
+        if (!listEl || !badgesEl) return;
+
+        const allItems = getCatalogItems();
+        const query = normalizeSearchText(document.getElementById('catalog-search-input')?.value || '');
+        const totals = {
+            all: allItems.length,
+            materials: allItems.filter(item => item.type === 'material').length,
+            products: allItems.filter(item => item.type === 'product').length,
+            missing: allItems.filter(item => !normalizeCatalogEan(item.ean)).length,
+            needsBuying: allItems.filter(item => item.type === 'material' && Number(item.needs_buying) === 1).length
+        };
+
+        badgesEl.innerHTML = `
+            <span style="background:#f8fafc; border:1px solid #e2e8f0; color:#334155; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:700;">Celkem ${totals.all}</span>
+            <span style="background:#fff8e6; border:1px solid rgba(212,175,55,0.28); color:#8a6b15; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:700;">Materiály ${totals.materials}</span>
+            <span style="background:#eef2ff; border:1px solid #c7d2fe; color:#4338ca; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:700;">Produkty ${totals.products}</span>
+            <span style="background:#fff7ed; border:1px solid #fdba74; color:#9a3412; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:700;">K nákupu ${totals.needsBuying}</span>
+            <span style="background:#fff1f2; border:1px solid #fecdd3; color:#be123c; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:700;">Bez EAN ${totals.missing}</span>
+        `;
+
+        let items = allItems.filter(item => {
+            const haystack = normalizeSearchText([item.brand, item.group, item.name, item.ean].join(' '));
+            const matchesQuery = !query || haystack.includes(query);
+            if (!matchesQuery) return false;
+
+            if (catalogFilterMode === 'material') return item.type === 'material';
+            if (catalogFilterMode === 'product') return item.type === 'product';
+            if (catalogFilterMode === 'missing-ean') return !normalizeCatalogEan(item.ean);
+            if (catalogFilterMode === 'needs-buying') return item.type === 'material' && Number(item.needs_buying) === 1;
+            if (catalogFilterMode === 'low') return item.type === 'material' && (item.stock_state || 'none') === 'low';
+            return true;
+        });
+
+        items.sort((a, b) => {
+            const aMissing = normalizeCatalogEan(a.ean) ? 1 : 0;
+            const bMissing = normalizeCatalogEan(b.ean) ? 1 : 0;
+            if (aMissing !== bMissing) return aMissing - bMissing;
+
+            const aBuying = a.type === 'material' && Number(a.needs_buying) === 1 ? 0 : 1;
+            const bBuying = b.type === 'material' && Number(b.needs_buying) === 1 ? 0 : 1;
+            if (aBuying !== bBuying) return aBuying - bBuying;
+
+            if (a.type !== b.type) return a.type === 'material' ? -1 : 1;
+            return `${a.brand} ${a.group} ${a.name}`.localeCompare(`${b.brand} ${b.group} ${b.name}`, 'cs');
+        });
+
+        if (items.length === 0) {
+            listEl.innerHTML = '<div style="padding:28px; text-align:center; color:#64748b; background:#f8fafc; border:1px dashed #e2e8f0; border-radius:16px;">Nic neodpovídá aktuálnímu filtru.</div>';
+            return;
+        }
+
+        listEl.innerHTML = items.map(item => {
+            const ean = normalizeCatalogEan(item.ean);
+            const isMaterial = item.type === 'material';
+            const needsBuying = isMaterial && Number(item.needs_buying) === 1;
+            const meta = isMaterial ? getMaterialStateMeta(item.stock_state || 'none') : null;
+            const typeBadge = isMaterial
+                ? '<span style="background:#fff8e6; border:1px solid rgba(212,175,55,0.28); color:#8a6b15; padding:4px 8px; border-radius:999px; font-size:10px; font-weight:800; text-transform:uppercase;">Materiál</span>'
+                : '<span style="background:#eef2ff; border:1px solid #c7d2fe; color:#4338ca; padding:4px 8px; border-radius:999px; font-size:10px; font-weight:800; text-transform:uppercase;">Produkt</span>';
+            const inactiveBadge = Number(item.is_active) === 0
+                ? '<span style="background:#f1f5f9; border:1px solid #cbd5e1; color:#64748b; padding:4px 8px; border-radius:999px; font-size:10px; font-weight:800; text-transform:uppercase;">Skryté</span>'
+                : '';
+            const shoppingBadge = needsBuying
+                ? '<span style="background:#fff7ed; border:1px solid #fdba74; color:#9a3412; padding:4px 8px; border-radius:999px; font-size:10px; font-weight:800; text-transform:uppercase;">K nákupu</span>'
+                : '';
+            const eanBadge = ean
+                ? `<span style="display:inline-flex; align-items:center; gap:6px; padding:8px 10px; border-radius:10px; background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; font-size:12px; font-weight:800;">${escapeHtml(ean)}</span>`
+                : '<span style="display:inline-flex; align-items:center; gap:6px; padding:8px 10px; border-radius:10px; background:#fff1f2; border:1px solid #fecdd3; color:#be123c; font-size:12px; font-weight:800;">Bez EAN</span>';
+            const stateButton = isMaterial
+                ? `<button type="button" class="btn-state-pc state-${meta.key}" data-material-id="${item.id}" data-material-state="${meta.key}" onclick="cycleMaterialState(${item.id}, this)" title="${meta.title}">${meta.short}</button>`
+                : '';
+            const secondaryLine = isMaterial
+                ? `${escapeHtml(item.brand || '')} • ${escapeHtml(item.group || '')}${item.use_count ? ` • použito ${item.use_count}×` : ''}`
+                : `${escapeHtml(item.brand || '')}${item.price ? ` • ${escapeHtml(String(item.price))} Kč` : ''}${item.use_count ? ` • prodáno ${item.use_count}×` : ''}`;
+            const receiveButton = `<button type="button" class="btn-menu" onclick="receiveCatalogItem('${item.type}', ${item.id})" style="padding:10px 12px; border-radius:10px; display:inline-flex; align-items:center; gap:6px; color:#0f766e; border-color:#99f6e4; background:#f0fdfa;" title="Zapsat příjem"><i data-lucide="package-check" style="width:16px; height:16px;"></i> Příjem</button>`;
+
+            return `
+                <div class="catalog-row" data-item-type="${item.type}" data-item-id="${item.id}" style="display:flex; justify-content:space-between; align-items:center; gap:16px; padding:14px 16px; border-radius:16px; background:${!ean ? '#fffaf5' : (needsBuying ? '#fffbeb' : '#ffffff')}; border:1px solid ${!ean ? '#fed7aa' : (needsBuying ? '#fde68a' : '#e2e8f0')}; transition:0.2s;">
+                    <div style="min-width:0; display:flex; flex-direction:column; gap:6px;">
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            ${typeBadge}
+                            ${inactiveBadge}
+                            ${shoppingBadge}
+                            ${stateButton}
+                        </div>
+                        <div style="font-size:15px; font-weight:800; color:#0f172a;">${escapeHtml(item.name || '')}</div>
+                        <div style="font-size:12px; color:#64748b;">${secondaryLine}</div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+                        ${eanBadge}
+                        ${receiveButton}
+                        <button type="button" class="btn-ulozit" onclick="armCatalogScan('${item.type}', ${item.id})" style="margin:0; width:auto; padding:10px 14px;">
+                            <i data-lucide="scan-line" style="width:16px; height:16px;"></i> Načíst EAN
+                        </button>
+                        ${ean ? `<button type="button" class="btn-menu" onclick="saveCatalogEan('${item.type}', ${item.id}, '')" style="padding:10px 12px; border-radius:10px;" title="Vymazat EAN"><i data-lucide="x" style="width:14px; height:14px;"></i></button>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        lucide.createIcons();
+    }
+
+    function initCatalogManager() {
+        if (catalogScannerInitialized) return;
+        catalogScannerInitialized = true;
+        updateCatalogActiveTargetLabel();
+        updateCatalogReceiveModeUi();
+        renderCatalogReceiptLog();
+        updateCatalogScanStatus(getCatalogDefaultStatusMessage(), 'neutral');
+
+        document.addEventListener('click', function(e) {
+            const view = document.getElementById('set-view-catalog');
+            if (!view || view.style.display === 'none') return;
+
+            const clickedTextField = e.target.closest('input, textarea, select');
+            if (!clickedTextField) {
+                setTimeout(() => focusCatalogScannerCapture(), 40);
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            const view = document.getElementById('set-view-catalog');
+            if (!view || view.style.display === 'none') return;
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+            if (e.key === 'Escape') {
+                clearCatalogScanTarget();
+                return;
+            }
+
+            if (e.key === 'Enter') {
+                const scanValue = catalogScanBuffer;
+                catalogScanBuffer = '';
+                clearTimeout(catalogScanTimer);
+                if (normalizeCatalogEan(scanValue).length >= 6) {
+                    e.preventDefault();
+                    handleCatalogScanValue(scanValue);
+                }
+                return;
+            }
+
+            if (e.key.length !== 1) return;
+
+            const now = Date.now();
+            if ((now - catalogLastKeyTime) > 120) {
+                catalogScanBuffer = '';
+            }
+            catalogLastKeyTime = now;
+            catalogScanBuffer += e.key;
+
+            if (catalogScanTarget) {
+                e.preventDefault();
+            }
+
+            clearTimeout(catalogScanTimer);
+            catalogScanTimer = setTimeout(() => {
+                const scanValue = catalogScanBuffer;
+                catalogScanBuffer = '';
+                if (normalizeCatalogEan(scanValue).length >= 8) {
+                    handleCatalogScanValue(scanValue);
+                }
+            }, 90);
+        }, true);
+    }
+
 
     function refreshShoppingUi(listCount = 0, totalQty = 0) {
         const safeCount = Math.max(0, parseInt(listCount, 10) || 0);
@@ -2044,6 +2769,14 @@
                 mat.needs_buying = json.new_status;
                 mat.shopping_qty = json.shopping_qty || mat.shopping_qty || 1;
             }
+            const catalogItem = Array.isArray(window.CATALOG_DATA)
+                ? window.CATALOG_DATA.find(entry => entry.type === 'material' && entry.id == id)
+                : null;
+            if (catalogItem) {
+                catalogItem.stock_state = json.stock_state;
+                catalogItem.needs_buying = json.new_status;
+            }
+            renderCatalogList();
         } catch (e) {
             console.error(e);
         }

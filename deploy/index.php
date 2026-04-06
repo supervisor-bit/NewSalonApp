@@ -18,7 +18,9 @@
     <script>
         const allActiveProducts = <?= json_encode(array_values($active_products ?: [])) ?>;
         const CSRF_TOKEN = <?= json_encode($_SESSION['csrf_token'] ?? '') ?>;
+        const ACTIVE_SETTINGS_TAB = <?= json_encode($active_settings_tab ?? 'profile') ?>;
         window.CSRF_TOKEN = CSRF_TOKEN;
+        window.ACTIVE_SETTINGS_TAB = ACTIVE_SETTINGS_TAB;
         
         // PWA Registration
         if ('serviceWorker' in navigator) {
@@ -93,6 +95,51 @@
             'use_count' => (int)($p['use_count'] ?? 0)
         ]; 
     }, $active_products)), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+
+    const CATALOG_DATA = <?= json_encode(array_values(array_merge(
+        array_map(function($m) {
+            return [
+                'type' => 'material',
+                'id' => (int)$m['id'],
+                'brand' => (string)($m['brand'] ?? "L'Oréal"),
+                'group' => (string)($m['category'] ?? ''),
+                'name' => (string)($m['name'] ?? ''),
+                'ean' => (string)($m['ean'] ?? ''),
+                'is_active' => (int)($m['is_active'] ?? 1),
+                'use_count' => (int)($m['use_count'] ?? 0),
+                'stock_state' => (string)($m['stock_state'] ?? 'none'),
+                'needs_buying' => (int)($m['needs_buying'] ?? 0)
+            ];
+        }, $all_materials ?: []),
+        array_map(function($p) {
+            return [
+                'type' => 'product',
+                'id' => (int)$p['id'],
+                'brand' => (string)($p['brand'] ?? 'Ostatní'),
+                'group' => 'Produkt na doma',
+                'name' => (string)($p['name'] ?? ''),
+                'ean' => (string)($p['ean'] ?? ''),
+                'is_active' => (int)($p['is_active'] ?? 1),
+                'use_count' => (int)($p['use_count'] ?? 0),
+                'price' => (int)($p['price'] ?? 0)
+            ];
+        }, $all_products ?: [])
+    )), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+    const RECENT_RECEIPTS_DATA = <?= json_encode(array_values(array_map(function($row) {
+        return [
+            'id' => (int)($row['id'] ?? 0),
+            'batch_code' => (string)($row['batch_code'] ?? ''),
+            'item_type' => (string)($row['item_type'] ?? ''),
+            'item_id' => (int)($row['item_id'] ?? 0),
+            'item_label' => (string)($row['item_label'] ?? ''),
+            'qty' => (int)($row['quantity'] ?? 1),
+            'note' => (string)($row['note'] ?? ''),
+            'scanned_ean' => (string)($row['scanned_ean'] ?? ''),
+            'received_at' => (string)($row['received_at'] ?? '')
+        ];
+    }, $recent_receipts ?: [])), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+    window.CATALOG_DATA = CATALOG_DATA;
+    window.RECENT_RECEIPTS_DATA = RECENT_RECEIPTS_DATA;
 </script>
 <script src="app.js?v=<?= time() ?>"></script>
 
@@ -842,7 +889,7 @@
                 </div>
                 <div>
                     <h2 style="margin:0; font-family:'Outfit'; font-size:30px; color:#fff; letter-spacing:-0.5px;">Správa salonu</h2>
-                    <p style="margin:0; font-size:14px; color:rgba(255,255,255,0.6);">Konfigurace profilu, barev, produktů a informací o aplikaci</p>
+                    <p style="margin:0; font-size:14px; color:rgba(255,255,255,0.6);">Konfigurace profilu, číselníku, katalogu, EAN a informací o aplikaci</p>
                 </div>
             </div>
         </div>
@@ -853,6 +900,7 @@
                 <button type="button" id="set-tab-btn-profile" class="acc-tab-btn-v2 active" onclick="prepniSettings('profile')">Můj profil</button>
                 <button type="button" id="set-tab-btn-materials" class="acc-tab-btn-v2" onclick="prepniSettings('materials')">Číselník barev</button>
                 <button type="button" id="set-tab-btn-products" class="acc-tab-btn-v2" onclick="prepniSettings('products')">Produkty na doma</button>
+                <button type="button" id="set-tab-btn-catalog" class="acc-tab-btn-v2" onclick="prepniSettings('catalog')">Katalog</button>
                 <button type="button" id="set-tab-btn-about" class="acc-tab-btn-v2" onclick="prepniSettings('about')">O aplikaci</button>
             </div>
         </div>
@@ -1064,6 +1112,89 @@
                                 </div>
                             <?php endforeach; endif; ?>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: KATALOG -->
+            <div id="set-view-catalog" class="acc-view" style="display:none;">
+                <div class="catalog-layout">
+                    <div class="catalog-sidebar-column">
+                        <div class="sekce" style="margin-bottom:0;">
+                            <span class="sekce-nadpis">Katalog & EAN</span>
+                            <p style="margin:8px 0 14px 0; color:#475569; font-size:14px; line-height:1.7;">
+                                Tady můžete párovat EAN a nově i zapnout jednoduchý <b>příjem zboží</b>. Čtečka funguje automaticky na celé stránce – buď kliknete na <b>Načíst EAN</b>, nebo zapnete příjem a jen pípejte známé kódy.
+                            </p>
+                            <div style="position:relative;">
+                                <i data-lucide="search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); width:14px; height:14px; color:#94a3b8;"></i>
+                                <input type="text" id="catalog-search-input" placeholder="Hledat položku, značku nebo EAN..." oninput="renderCatalogList()" style="padding-left:35px; height:40px; font-size:13px; border-radius:10px;">
+                            </div>
+                            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;">
+                                <button type="button" class="acc-tab-btn-v2 catalog-filter-btn active" data-filter="all" onclick="setCatalogFilter('all', this)">Vše</button>
+                                <button type="button" class="acc-tab-btn-v2 catalog-filter-btn" data-filter="material" onclick="setCatalogFilter('material', this)">Materiály</button>
+                                <button type="button" class="acc-tab-btn-v2 catalog-filter-btn" data-filter="product" onclick="setCatalogFilter('product', this)">Produkty</button>
+                                <button type="button" class="acc-tab-btn-v2 catalog-filter-btn" data-filter="missing-ean" onclick="setCatalogFilter('missing-ean', this)">Bez EAN</button>
+                                <button type="button" class="acc-tab-btn-v2 catalog-filter-btn" data-filter="needs-buying" onclick="setCatalogFilter('needs-buying', this)">K nákupu</button>
+                                <button type="button" class="acc-tab-btn-v2 catalog-filter-btn" data-filter="low" onclick="setCatalogFilter('low', this)">Dochází</button>
+                            </div>
+                        </div>
+
+                        <div class="sekce" style="margin-bottom:0;">
+                            <span class="sekce-nadpis">Stav čtečky</span>
+                            <input type="text" id="catalog-scanner-capture" inputmode="none" autocomplete="off" spellcheck="false" style="position:absolute; left:-9999px; opacity:0; pointer-events:none;" aria-hidden="true">
+                            <div id="catalog-scan-status" style="margin-top:10px; padding:12px 14px; border-radius:12px; background:#f8fafc; border:1px solid #e2e8f0; color:#334155; font-size:13px; line-height:1.6;">
+                                Čtečka je připravená. Vyberte položku a klikněte na <b>Načíst EAN</b>.
+                            </div>
+                            <div id="catalog-active-target" style="margin-top:10px; font-size:12px; color:#64748b; line-height:1.6;">Není vybraná žádná položka.</div>
+                            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+                                <button type="button" class="btn-cancel" onclick="clearCatalogScanTarget()" style="display:inline-flex; align-items:center; justify-content:center; margin:0; height:38px;">Zrušit párování</button>
+                                <button type="button" class="btn-menu" onclick="focusCatalogScannerCapture(true)" style="padding:10px 12px; border-radius:10px;">Aktivovat čtečku</button>
+                            </div>
+                        </div>
+
+                        <div class="sekce" style="margin-bottom:0;">
+                            <span class="sekce-nadpis">Příjem zboží</span>
+                            <p style="margin:8px 0 12px 0; color:#475569; font-size:13px; line-height:1.7;">
+                                Zapněte příjem a potom už stačí pípat známé EAN. U materiálů se po přijetí automaticky vypne <b>Dochází</b> i nákupní seznam.
+                            </p>
+                            <div style="display:grid; grid-template-columns:90px 1fr; gap:10px; align-items:end;">
+                                <div>
+                                    <label for="catalog-receive-qty" style="display:block; font-size:11px; font-weight:700; color:#64748b; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">Počet</label>
+                                    <input type="number" id="catalog-receive-qty" min="1" max="99" value="1" style="height:40px; font-size:14px; text-align:center; border-radius:10px;">
+                                </div>
+                                <div>
+                                    <label for="catalog-receive-note" style="display:block; font-size:11px; font-weight:700; color:#64748b; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">Poznámka</label>
+                                    <input type="text" id="catalog-receive-note" maxlength="120" placeholder="např. 2 balení navíc" style="height:40px; font-size:13px; border-radius:10px;">
+                                </div>
+                            </div>
+                            <div id="catalog-receive-mode-status" style="margin-top:10px; padding:10px 12px; border-radius:12px; background:#f8fafc; border:1px solid #e2e8f0; color:#334155; font-size:12px; line-height:1.6;">
+                                Režim příjmu je vypnutý.
+                            </div>
+                            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+                                <button type="button" class="btn-ulozit" id="catalog-receive-toggle-btn" onclick="toggleCatalogReceiveMode()" style="margin:0; width:auto; padding:10px 14px;">Zapnout příjem</button>
+                                <button type="button" class="btn-menu" id="catalog-batch-toggle-btn" onclick="toggleCatalogBatchMode()" style="padding:10px 12px; border-radius:10px;">Dávková příjemka</button>
+                                <button type="button" class="btn-cancel" onclick="toggleCatalogReceiveMode(false)" style="display:inline-flex; align-items:center; justify-content:center; margin:0; height:38px;">Vypnout</button>
+                            </div>
+                            <div id="catalog-batch-panel" style="display:none; margin-top:12px; padding:12px; border-radius:14px; background:#fff; border:1px solid #dbeafe;">
+                                <div style="font-size:11px; font-weight:800; color:#2563eb; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px;">Dávková příjemka</div>
+                                <div id="catalog-batch-status" style="font-size:12px; color:#475569; line-height:1.6;">Dávkový režim je vypnutý.</div>
+                                <div id="catalog-batch-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
+                                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+                                    <button type="button" class="btn-ulozit" onclick="saveCatalogBatchReceipt()" style="margin:0; width:auto; padding:10px 12px;">Uložit příjemku</button>
+                                    <button type="button" class="btn-cancel" onclick="clearCatalogBatchQueue()" style="display:inline-flex; align-items:center; justify-content:center; margin:0; height:38px;">Vymazat seznam</button>
+                                </div>
+                            </div>
+                            <div style="margin-top:14px; font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; letter-spacing:0.04em;">Poslední příjem</div>
+                            <div id="catalog-receipt-log" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
+                        </div>
+                    </div>
+
+                    <div class="sekce catalog-main-panel" style="margin-bottom:0;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
+                            <span class="sekce-nadpis" style="margin:0;">Položky katalogu</span>
+                            <div id="catalog-summary-badges" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+                        </div>
+                        <div id="catalog-item-list" style="display:flex; flex-direction:column; gap:10px;"></div>
                     </div>
                 </div>
             </div>

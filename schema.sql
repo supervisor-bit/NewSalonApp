@@ -2,6 +2,7 @@ CREATE DATABASE IF NOT EXISTS `karta_db` CHARACTER SET utf8mb4 COLLATE utf8mb4_u
 USE `karta_db`;
 
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS `stock_receipts`;
 DROP TABLE IF EXISTS `direct_sales`;
 DROP TABLE IF EXISTS `visit_products`;
 DROP TABLE IF EXISTS `products`;
@@ -31,7 +32,8 @@ CREATE TABLE IF NOT EXISTS `materials` (
   `name` VARCHAR(100) NOT NULL,
   `needs_buying` TINYINT(1) DEFAULT 0,
   `shopping_qty` INT NOT NULL DEFAULT 1,
-  `stock_state` VARCHAR(20) NOT NULL DEFAULT 'none'
+  `stock_state` VARCHAR(20) NOT NULL DEFAULT 'none',
+  `ean` VARCHAR(64) DEFAULT NULL
 );
 
 CREATE TABLE IF NOT EXISTS `visits` (
@@ -76,7 +78,8 @@ CREATE TABLE IF NOT EXISTS `products` (
   `brand` VARCHAR(50) NOT NULL DEFAULT 'Ostatní',
   `name` VARCHAR(100) NOT NULL,
   `price` INT DEFAULT 0,
-  `is_active` TINYINT(1) DEFAULT 1
+  `is_active` TINYINT(1) DEFAULT 1,
+  `ean` VARCHAR(64) DEFAULT NULL
 );
 
 CREATE TABLE IF NOT EXISTS `visit_products` (
@@ -98,6 +101,20 @@ CREATE TABLE IF NOT EXISTS `direct_sales` (
   `note` VARCHAR(255) DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `stock_receipts` (
+  `id` INT PRIMARY KEY AUTO_INCREMENT,
+  `batch_code` VARCHAR(64) DEFAULT NULL,
+  `item_type` VARCHAR(20) NOT NULL,
+  `item_id` INT NOT NULL,
+  `quantity` INT NOT NULL DEFAULT 1,
+  `scanned_ean` VARCHAR(64) DEFAULT NULL,
+  `note` VARCHAR(255) DEFAULT NULL,
+  `received_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_receipts_batch_code` (`batch_code`),
+  INDEX `idx_receipts_type_item` (`item_type`, `item_id`),
+  INDEX `idx_receipts_received_at` (`received_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `users` (

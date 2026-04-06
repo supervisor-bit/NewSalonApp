@@ -314,6 +314,55 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .sekce { margin-bottom: 20px; background: #fff; padding: 22px; border-radius: 16px; border: 1px solid var(--border); }
 .sekce-nadpis { display: block; color: #94a3b8; font-weight: 700; font-size: 12px; text-transform: uppercase; margin-bottom: 16px; letter-spacing: 1.2px; }
 
+.catalog-layout {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+}
+
+.catalog-sidebar-column {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    position: sticky;
+    top: 0;
+    align-self: start;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    padding-right: 6px;
+    scrollbar-width: thin;
+}
+
+.catalog-main-panel {
+    min-width: 0;
+}
+
+#catalog-item-list {
+    max-height: calc(100vh - 260px);
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+@media (max-width: 980px) {
+    .catalog-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .catalog-sidebar-column {
+        position: static;
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+    }
+
+    #catalog-item-list {
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+    }
+}
+
 input, select, textarea { width: 100%; padding: 13px 16px; border: 1px solid var(--border); border-radius: 12px; font-size: 15px; background: #fff; box-sizing: border-box; transition: 0.2s; font-family: 'Inter', sans-serif; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.1); }
 
