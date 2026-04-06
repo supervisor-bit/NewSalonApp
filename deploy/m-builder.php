@@ -509,13 +509,14 @@ if ($source_id > 0) {
             switch (stockState) {
                 case 'opened': return { key: 'opened', short: 'ROZ' };
                 case 'low': return { key: 'low', short: 'DOCH' };
+                case 'ordered': return { key: 'ordered', short: 'OBJ' };
                 default: return { key: 'none', short: '—' };
             }
         }
 
         async function cycleMaterialStateMobile(id, btn) {
             const currentState = btn?.dataset.materialState || (materialsData.find(m => m.id == id)?.stock_state ?? 'none');
-            const stateOrder = ['none', 'opened', 'low'];
+            const stateOrder = ['none', 'opened', 'low', 'ordered'];
             const nextState = stateOrder[(Math.max(0, stateOrder.indexOf(currentState)) + 1) % stateOrder.length];
 
             try {
@@ -538,6 +539,13 @@ if ($source_id > 0) {
                 document.querySelectorAll(`.m-btn-shop[data-material-id="${id}"]`).forEach(shopBtn => {
                     if (json.new_status) shopBtn.classList.add('active');
                     else shopBtn.classList.remove('active');
+                });
+
+                document.querySelectorAll(`.m-btn-state[data-material-id="${id}"]`).forEach(stateBtn => {
+                    const meta = getMobileStateMeta(json.stock_state || 'none');
+                    stateBtn.dataset.materialState = meta.key;
+                    stateBtn.className = `m-btn-state state-${meta.key}`;
+                    stateBtn.textContent = meta.short;
                 });
 
                 let mat = materialsData.find(m => m.id == id);

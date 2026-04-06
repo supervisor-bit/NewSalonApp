@@ -788,6 +788,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
     color: #be123c;
 }
 
+.btn-state-pc.state-ordered {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
 .btn-state-pc:hover {
     transform: translateY(-1px);
 }

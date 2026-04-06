@@ -264,6 +264,11 @@ h1, h2, h3 { font-family: 'Outfit', sans-serif; font-weight: 700; }
     border-color: #ef4444;
     color: #b91c1c;
 }
+.m-btn-state.state-ordered {
+    background: #dbeafe;
+    border-color: #3b82f6;
+    color: #1d4ed8;
+}
 .m-btn-shop.active { 
     color: var(--gold); 
     transform: scale(1.2);

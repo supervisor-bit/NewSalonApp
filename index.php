@@ -403,12 +403,15 @@
                         <div style="background:#fff1f2; border:1px solid #fecdd3; color:#be123c; padding:8px 12px; border-radius:10px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:6px;">
                             Dochází <span id="material-low-count"><?= (int)$low_materials_count ?></span>
                         </div>
+                        <div style="background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; padding:8px 12px; border-radius:10px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:6px;">
+                            Objednáno <span id="material-ordered-count"><?= (int)$ordered_materials_count ?></span>
+                        </div>
                         <div id="shopping-counter-box" style="background:#fef2f2; border:1px solid #fee2e2; color:#be123c; padding:8px 15px; border-radius:10px; font-size:13px; font-weight:600; display:<?= empty($shopping_list) ? 'none' : 'flex' ?>; align-items:center; gap:8px; flex-wrap:wrap;">
                             <i data-lucide="shopping-cart" style="width:16px;height:16px;"></i>
                             Aktuálně chybí <span id="shopping-counter-val"><?= count($shopping_list) ?></span> položek • <span id="shopping-counter-qty"><?= (int)$shopping_total_qty ?></span> ks
                         </div>
-                        <div id="material-state-note" style="width:100%; text-align:right; color:#64748b; font-size:12px; display:<?= (($opened_materials_count + $low_materials_count) > 0) ? 'block' : 'none' ?>;">
-                            `Dochází` se přidá do nákupního seznamu automaticky, `Rozdělané` zůstává jen jako přehled.
+                        <div id="material-state-note" style="width:100%; text-align:right; color:#64748b; font-size:12px; display:<?= (($opened_materials_count + $low_materials_count + $ordered_materials_count) > 0) ? 'block' : 'none' ?>;">
+                            `Dochází` se přidá automaticky, `Objednáno` tu zůstane do doručení a `Rozdělané` je jen přehled.
                         </div>
                     </div>
                 </div>
@@ -416,11 +419,11 @@
                 <div class="acc-list-premium" id="shopping-list-container">
                     <!-- Prázdný stav (vždy v DOMu, zobrazen jen když je potřeba) -->
                     <div id="shopping-empty-state" style="padding:80px 40px; text-align:center; background:#fff; border-radius:24px; border:2px dashed #e2e8f0; display:<?= empty($shopping_list) ? 'block' : 'none' ?>;">
-                        <div id="shopping-empty-icon-wrap" style="background:<?= (($opened_materials_count + $low_materials_count) > 0) ? '#fff7ed' : '#f1f5f9' ?>; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
-                            <i id="shopping-empty-icon" data-lucide="check-circle-2" style="width:30px; height:30px; color:<?= (($opened_materials_count + $low_materials_count) > 0) ? '#f59e0b' : '#10b981' ?>;"></i>
+                        <div id="shopping-empty-icon-wrap" style="background:<?= (($opened_materials_count + $low_materials_count + $ordered_materials_count) > 0) ? '#fff7ed' : '#f1f5f9' ?>; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
+                            <i id="shopping-empty-icon" data-lucide="check-circle-2" style="width:30px; height:30px; color:<?= (($opened_materials_count + $low_materials_count + $ordered_materials_count) > 0) ? '#f59e0b' : '#10b981' ?>;"></i>
                         </div>
-                        <h4 id="shopping-empty-title" style="font-family:'Outfit'; font-size:20px; color:var(--primary); margin-bottom:8px;"><?= (($opened_materials_count + $low_materials_count) > 0) ? 'Košík je prázdný' : 'Všechno máme!' ?></h4>
-                        <p id="shopping-empty-text" style="color:#64748b; font-size:14px; margin:0;"><?= (($opened_materials_count + $low_materials_count) > 0) ? 'Pokud něco označíš jako `Dochází`, objeví se to tady automaticky.' : 'Nákupní lístek je momentálně prázdný.' ?></p>
+                        <h4 id="shopping-empty-title" style="font-family:'Outfit'; font-size:20px; color:var(--primary); margin-bottom:8px;"><?= (($opened_materials_count + $low_materials_count + $ordered_materials_count) > 0) ? 'Košík je prázdný' : 'Všechno máme!' ?></h4>
+                        <p id="shopping-empty-text" style="color:#64748b; font-size:14px; margin:0;"><?= (($opened_materials_count + $low_materials_count + $ordered_materials_count) > 0) ? 'Když něco přepneš na `Dochází` nebo `Objednáno`, uvidíš to tady hned.' : 'Nákupní lístek je momentálně prázdný.' ?></p>
                     </div>
 
                     <!-- Seznam položek -->
@@ -433,7 +436,7 @@
                                 </div>
                                 <div class="row-info">
                                     <div class="name" style="font-size:18px;"><?= htmlspecialchars($sl['name']) ?></div>
-                                    <div class="note" style="font-size:12px; text-transform:uppercase; font-weight:600; letter-spacing:0.5px;"><?= htmlspecialchars($sl['category']) ?> (<?= htmlspecialchars($sl['brand']) ?>) • objednat <span class="shopping-qty-inline"><?= $shoppingQty ?></span> ks</div>
+                                    <div class="note" style="font-size:12px; text-transform:uppercase; font-weight:600; letter-spacing:0.5px;"><?= htmlspecialchars($sl['category']) ?> (<?= htmlspecialchars($sl['brand']) ?>) • <?= (($sl['stock_state'] ?? 'none') === 'ordered') ? 'objednáno • čeká na příjem' : 'objednat' ?> <span class="shopping-qty-inline"><?= $shoppingQty ?></span> ks</div>
                                 </div>
                                 <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end;">
                                     <div style="display:flex; align-items:center; gap:8px; background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:6px 8px;">
@@ -443,7 +446,7 @@
                                         <span style="font-size:11px; font-weight:700; color:#9a3412; text-transform:uppercase;">ks</span>
                                     </div>
                                     <button type="button" class="btn-ulozit" onclick="toggleShoppingPC(<?= $sl['id'] ?>, this, true)" style="background:#f1f5f9; color:var(--primary); border:none; padding:10px 20px; font-size:13px; font-weight:700; border-radius:10px; display:flex; align-items:center; gap:8px; margin:0;">
-                                        <i data-lucide="check" style="width:16px;height:16px;color:#10b981;"></i> Označit jako koupené
+                                        <i data-lucide="<?= (($sl['stock_state'] ?? 'none') === 'ordered') ? 'package-check' : 'check' ?>" style="width:16px;height:16px;color:#10b981;"></i> <?= (($sl['stock_state'] ?? 'none') === 'ordered') ? 'Označit jako doručené' : 'Označit jako koupené' ?>
                                     </button>
                                 </div>
                             </div>
@@ -944,7 +947,7 @@
                         <div class="sekce" style="margin-bottom:0;">
                             <span class="sekce-nadpis">Příjem zboží</span>
                             <p style="margin:8px 0 12px 0; color:#475569; font-size:13px; line-height:1.7;">
-                                Zapněte příjem a potom už stačí pípat známé EAN. U materiálů se po přijetí automaticky vypne <b>Dochází</b> i nákupní seznam.
+                                Zapněte příjem a potom už stačí pípat známé EAN. U materiálů se po přijetí automaticky vypne stav <b>Dochází / Objednáno</b> i nákupní seznam.
                             </p>
                             <div style="display:grid; grid-template-columns:90px 1fr; gap:10px; align-items:end;">
                                 <div>
@@ -1290,7 +1293,7 @@
                             </div>
                             <div style="padding:14px 16px; border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0;">
                                 <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">Hlídač materiálu</div>
-                                <div style="font-size:14px; font-weight:700; color:#334155;">Stavy `Rozdělané`, `Dochází` a nákupní seznam s počty</div>
+                                <div style="font-size:14px; font-weight:700; color:#334155;">Stavy `Rozdělané`, `Dochází`, `Objednáno` a nákupní seznam s počty</div>
                             </div>
                             <div style="padding:14px 16px; border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0;">
                                 <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px;">Katalog & EAN</div>

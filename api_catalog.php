@@ -129,15 +129,17 @@ try {
             ];
         }
 
-        $countStmt = $pdo->query("SELECT COUNT(*) AS list_count, COALESCE(SUM(GREATEST(COALESCE(shopping_qty, 1), 1)), 0) AS total_qty FROM materials WHERE needs_buying = 1 OR COALESCE(NULLIF(stock_state, ''), 'none') = 'low'");
+        $countStmt = $pdo->query("SELECT COUNT(*) AS list_count, COALESCE(SUM(GREATEST(COALESCE(shopping_qty, 1), 1)), 0) AS total_qty FROM materials WHERE needs_buying = 1 OR COALESCE(NULLIF(stock_state, ''), 'none') IN ('low', 'ordered')");
         $counts = $countStmt->fetch(PDO::FETCH_ASSOC) ?: ['list_count' => 0, 'total_qty' => 0];
 
-        $stateCountsStmt = $pdo->query("SELECT COALESCE(NULLIF(stock_state, ''), 'none') AS stock_state, COUNT(*) AS cnt FROM materials WHERE COALESCE(NULLIF(stock_state, ''), 'none') IN ('opened', 'low') GROUP BY stock_state");
+        $stateCountsStmt = $pdo->query("SELECT COALESCE(NULLIF(stock_state, ''), 'none') AS stock_state, COUNT(*) AS cnt FROM materials WHERE COALESCE(NULLIF(stock_state, ''), 'none') IN ('opened', 'low', 'ordered') GROUP BY stock_state");
         $openedCount = 0;
         $lowCount = 0;
+        $orderedCount = 0;
         foreach ($stateCountsStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             if (($row['stock_state'] ?? '') === 'opened') $openedCount = (int)$row['cnt'];
             if (($row['stock_state'] ?? '') === 'low') $lowCount = (int)$row['cnt'];
+            if (($row['stock_state'] ?? '') === 'ordered') $orderedCount = (int)$row['cnt'];
         }
 
         $pdo->commit();
@@ -149,7 +151,8 @@ try {
             'list_count' => (int)($counts['list_count'] ?? 0),
             'total_qty' => (int)($counts['total_qty'] ?? 0),
             'opened_count' => $openedCount,
-            'low_count' => $lowCount
+            'low_count' => $lowCount,
+            'ordered_count' => $orderedCount
         ]);
         exit;
     }
@@ -223,15 +226,17 @@ try {
     $insert->execute([$batchCode !== '' ? $batchCode : null, $itemType, $itemId, $quantity, $receiptEan, $note !== '' ? $note : null]);
     $receiptId = (int)$pdo->lastInsertId();
 
-    $countStmt = $pdo->query("SELECT COUNT(*) AS list_count, COALESCE(SUM(GREATEST(COALESCE(shopping_qty, 1), 1)), 0) AS total_qty FROM materials WHERE needs_buying = 1 OR COALESCE(NULLIF(stock_state, ''), 'none') = 'low'");
+    $countStmt = $pdo->query("SELECT COUNT(*) AS list_count, COALESCE(SUM(GREATEST(COALESCE(shopping_qty, 1), 1)), 0) AS total_qty FROM materials WHERE needs_buying = 1 OR COALESCE(NULLIF(stock_state, ''), 'none') IN ('low', 'ordered')");
     $counts = $countStmt->fetch(PDO::FETCH_ASSOC) ?: ['list_count' => 0, 'total_qty' => 0];
 
-    $stateCountsStmt = $pdo->query("SELECT COALESCE(NULLIF(stock_state, ''), 'none') AS stock_state, COUNT(*) AS cnt FROM materials WHERE COALESCE(NULLIF(stock_state, ''), 'none') IN ('opened', 'low') GROUP BY stock_state");
+    $stateCountsStmt = $pdo->query("SELECT COALESCE(NULLIF(stock_state, ''), 'none') AS stock_state, COUNT(*) AS cnt FROM materials WHERE COALESCE(NULLIF(stock_state, ''), 'none') IN ('opened', 'low', 'ordered') GROUP BY stock_state");
     $openedCount = 0;
     $lowCount = 0;
+    $orderedCount = 0;
     foreach ($stateCountsStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
         if (($row['stock_state'] ?? '') === 'opened') $openedCount = (int)$row['cnt'];
         if (($row['stock_state'] ?? '') === 'low') $lowCount = (int)$row['cnt'];
+        if (($row['stock_state'] ?? '') === 'ordered') $orderedCount = (int)$row['cnt'];
     }
 
     $receiptTimeStmt = $pdo->prepare("SELECT DATE_FORMAT(received_at, '%Y-%m-%d %H:%i:%s') AS received_at FROM stock_receipts WHERE id = ? LIMIT 1");
@@ -253,6 +258,7 @@ try {
         'total_qty' => (int)($counts['total_qty'] ?? 0),
         'opened_count' => $openedCount,
         'low_count' => $lowCount,
+        'ordered_count' => $orderedCount,
         'receipt' => [
             'id' => $receiptId,
             'batch_code' => $batchCode,

@@ -94,8 +94,10 @@ $top_home_products = [];
 $shopping_total_qty = 0;
 $opened_materials = [];
 $low_materials = [];
+$ordered_materials = [];
 $opened_materials_count = 0;
 $low_materials_count = 0;
+$ordered_materials_count = 0;
 $recent_receipts = [];
 
 if (!$setup_needed) {
@@ -132,7 +134,7 @@ if (!$setup_needed) {
             $pdo->exec("ALTER TABLE materials ADD COLUMN ean VARCHAR(64) DEFAULT NULL");
         }
         $pdo->exec("UPDATE materials SET shopping_qty = 1 WHERE shopping_qty IS NULL OR shopping_qty < 1");
-        $pdo->exec("UPDATE materials SET stock_state = 'none' WHERE stock_state IS NULL OR stock_state = '' OR stock_state NOT IN ('none', 'opened', 'low')");
+        $pdo->exec("UPDATE materials SET stock_state = 'none' WHERE stock_state IS NULL OR stock_state = '' OR stock_state NOT IN ('none', 'opened', 'low', 'ordered')");
 
         $productColumns = $pdo->query("SHOW COLUMNS FROM products")->fetchAll(PDO::FETCH_COLUMN);
         if (!in_array('ean', $productColumns, true)) {
@@ -344,7 +346,7 @@ if (!$setup_needed) {
     $materials = array_filter($all_materials, function($m) { return $m['is_active'] == 1; });
     
     // 4. Seznam k nákupu (Hlídač)
-    $shop_stmt = $pdo->query("SELECT id, brand, category, name, COALESCE(shopping_qty, 1) AS shopping_qty, COALESCE(NULLIF(stock_state, ''), 'none') AS stock_state FROM materials WHERE needs_buying = 1 OR COALESCE(NULLIF(stock_state, ''), 'none') = 'low' ORDER BY brand, category, name");
+    $shop_stmt = $pdo->query("SELECT id, brand, category, name, COALESCE(shopping_qty, 1) AS shopping_qty, COALESCE(NULLIF(stock_state, ''), 'none') AS stock_state FROM materials WHERE needs_buying = 1 OR COALESCE(NULLIF(stock_state, ''), 'none') IN ('low', 'ordered') ORDER BY CASE COALESCE(NULLIF(stock_state, ''), 'none') WHEN 'low' THEN 0 WHEN 'ordered' THEN 1 ELSE 2 END, brand, category, name");
     $shopping_list = $shop_stmt->fetchAll();
     $shopping_total_qty = array_sum(array_map(static function ($item) {
         return max(1, (int)($item['shopping_qty'] ?? 1));
@@ -357,6 +359,10 @@ if (!$setup_needed) {
     $low_stmt = $pdo->query("SELECT id, brand, category, name FROM materials WHERE COALESCE(NULLIF(stock_state, ''), 'none') = 'low' ORDER BY brand, category, name LIMIT 8");
     $low_materials = $low_stmt->fetchAll();
     $low_materials_count = (int)($pdo->query("SELECT COUNT(*) FROM materials WHERE COALESCE(NULLIF(stock_state, ''), 'none') = 'low'")->fetchColumn() ?: 0);
+
+    $ordered_stmt = $pdo->query("SELECT id, brand, category, name FROM materials WHERE COALESCE(NULLIF(stock_state, ''), 'none') = 'ordered' ORDER BY brand, category, name LIMIT 8");
+    $ordered_materials = $ordered_stmt->fetchAll();
+    $ordered_materials_count = (int)($pdo->query("SELECT COUNT(*) FROM materials WHERE COALESCE(NULLIF(stock_state, ''), 'none') = 'ordered'")->fetchColumn() ?: 0);
 
     try {
         $recent_receipts_stmt = $pdo->query(" 

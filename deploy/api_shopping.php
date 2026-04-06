@@ -32,7 +32,7 @@ try {
         $pdo->exec("ALTER TABLE materials ADD COLUMN stock_state VARCHAR(20) NOT NULL DEFAULT 'none'");
     }
     $pdo->exec("UPDATE materials SET shopping_qty = 1 WHERE shopping_qty IS NULL OR shopping_qty < 1");
-    $pdo->exec("UPDATE materials SET stock_state = 'none' WHERE stock_state IS NULL OR stock_state = '' OR stock_state NOT IN ('none', 'opened', 'low')");
+    $pdo->exec("UPDATE materials SET stock_state = 'none' WHERE stock_state IS NULL OR stock_state = '' OR stock_state NOT IN ('none', 'opened', 'low', 'ordered')");
 
     $stmt = $pdo->prepare("SELECT needs_buying, COALESCE(shopping_qty, 1) AS shopping_qty, COALESCE(NULLIF(stock_state, ''), 'none') AS stock_state FROM materials WHERE id = ?");
     $stmt->execute([$material_id]);
@@ -53,11 +53,11 @@ try {
         $upd = $pdo->prepare("UPDATE materials SET needs_buying = 1, shopping_qty = ?, stock_state = ? WHERE id = ?");
         $upd->execute([$new_qty, $new_state, $material_id]);
     } elseif ($mode === 'set_state') {
-        $allowedStates = ['none', 'opened', 'low'];
+        $allowedStates = ['none', 'opened', 'low', 'ordered'];
         $new_state = in_array($requested_state, $allowedStates, true) ? $requested_state : 'none';
-        if ($new_state === 'low') {
+        if (in_array($new_state, ['low', 'ordered'], true)) {
             $new_status = 1;
-        } elseif ($current_state === 'low') {
+        } elseif (in_array($current_state, ['low', 'ordered'], true)) {
             $new_status = 0;
         } else {
             $new_status = (int)$current['needs_buying'];
@@ -68,20 +68,22 @@ try {
     } else {
         $new_status = ((int)$current['needs_buying']) ? 0 : 1;
         $new_qty = $current_qty;
-        $new_state = ($new_status === 0 && $current_state === 'low') ? 'none' : $current_state;
+        $new_state = ($new_status === 0 && in_array($current_state, ['low', 'ordered'], true)) ? 'none' : $current_state;
         $upd = $pdo->prepare("UPDATE materials SET needs_buying = ?, shopping_qty = ?, stock_state = ? WHERE id = ?");
         $upd->execute([$new_status, $new_qty, $new_state, $material_id]);
     }
 
-    $countStmt = $pdo->query("SELECT COUNT(*) AS list_count, COALESCE(SUM(GREATEST(COALESCE(shopping_qty, 1), 1)), 0) AS total_qty FROM materials WHERE needs_buying = 1 OR COALESCE(NULLIF(stock_state, ''), 'none') = 'low'");
+    $countStmt = $pdo->query("SELECT COUNT(*) AS list_count, COALESCE(SUM(GREATEST(COALESCE(shopping_qty, 1), 1)), 0) AS total_qty FROM materials WHERE needs_buying = 1 OR COALESCE(NULLIF(stock_state, ''), 'none') IN ('low', 'ordered')");
     $counts = $countStmt->fetch(PDO::FETCH_ASSOC) ?: ['list_count' => 0, 'total_qty' => 0];
 
-    $stateCountsStmt = $pdo->query("SELECT COALESCE(NULLIF(stock_state, ''), 'none') AS stock_state, COUNT(*) AS cnt FROM materials WHERE COALESCE(NULLIF(stock_state, ''), 'none') IN ('opened', 'low') GROUP BY stock_state");
+    $stateCountsStmt = $pdo->query("SELECT COALESCE(NULLIF(stock_state, ''), 'none') AS stock_state, COUNT(*) AS cnt FROM materials WHERE COALESCE(NULLIF(stock_state, ''), 'none') IN ('opened', 'low', 'ordered') GROUP BY stock_state");
     $openedCount = 0;
     $lowCount = 0;
+    $orderedCount = 0;
     foreach ($stateCountsStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
         if (($row['stock_state'] ?? '') === 'opened') $openedCount = (int)$row['cnt'];
         if (($row['stock_state'] ?? '') === 'low') $lowCount = (int)$row['cnt'];
+        if (($row['stock_state'] ?? '') === 'ordered') $orderedCount = (int)$row['cnt'];
     }
 
     echo json_encode([
@@ -92,7 +94,8 @@ try {
         'list_count' => (int)($counts['list_count'] ?? 0),
         'total_qty' => (int)($counts['total_qty'] ?? 0),
         'opened_count' => $openedCount,
-        'low_count' => $lowCount
+        'low_count' => $lowCount,
+        'ordered_count' => $orderedCount
     ]);
 } catch (PDOException $e) {
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
