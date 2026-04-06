@@ -1,38 +1,124 @@
-## 🚀 1. Rychlá instalace (DOPORUČENO)
-Pokud instalujete aplikaci poprvé nebo chcete čistý reset, nahrajte soubory na server a spusťte v prohlížeči:
-`https://vasedomena.cz/install.php?run=1`
+# NASAZENÍ NA SYNOLOGY / WEBHOSTING
 
-**Tento skript automaticky:**
-- Vytvoří/Obnoví všechny databázové tabulky.
-- Naimportuje barvy a oxydanty z prvního nalezeného souboru `barvy*.csv` / `materials*.csv`.
-- Naimportuje produkty na doma z prvního nalezeného souboru `produkty*.csv` / `products*.csv`.
-
-## 📥 2. Nahrání souborů
-Zkopírujte veškerý obsah složky `deploy/` do kořenového adresáře vašeho webu (např. přes FTP).
-
-## 🗄️ 3. Nastavení Databáze (MySQL)
-1. Otevřete soubor `db.php` a upravte přihlašovací údaje k vaší databázi (host, jméno, uživatel, heslo).
-2. Pokud nepoužijete automatický `install.php`, musíte ručně importovat `schema.sql` přes phpMyAdmin.
-
-## 🛠️ 4. Aktualizace stávající verze
-Pokud už systém máte a chcete jen přidat nové funkce (např. „Hlídač materiálu“), spusťte:
-`https://vasedomena.cz/migrate.php`
-
-## 📱 4. Nastavení PWA (Ikona na plochu)
-Aplikace je připravena jako PWA. Pokud chcete změnit ikonu, nahraďte soubor `icon.png` (512x512px) a aktualizujte `manifest.json`, pokud se mění název salonu.
-
-## 🏗️ 5. Instalace na Synology NAS (DS716+)
-Aplikace na vašem NASu poběží výborně. Postup:
-1.  V **Centru balíčků** nainstalujte: `Web Station`, `PHP 8.2` a `MariaDB 10`.
-2.  Ve **Web Station** vytvořte skriptovací profil pro PHP 8.2 a v sekci **Rozšíření** zaškrtněte: `pdo_mysql`, `mysqli`, `openssl`, `curl` a `mbstring`.
-3.  V **MariaDB 10** si poznamenejte port (standardně `3306` nebo `3307`).
-4.  Pomocí **File Station** nahrajte obsah složky `deploy/` do složky `web/karta/`.
-5.  V souboru `db.php` nastavte `host` (obvykle `127.0.0.1` nebo `localhost`) a správný port.
-
-## ✅ Kontrolní seznam
-- Verze PHP: Doporučeno 7.4 nebo 8.x.
-- Povolená rozšíření: `pdo_mysql`, `json`, `mbstring`.
-- Práva k zápisu: Ujistěte se, že PHP může číst soubory `.csv` pro importy.
+## 📦 Co se nasazuje
+Na server se nahrává **obsah složky `deploy/`**.
+Tato složka je připravená jako produkční balík pro NAS / hosting.
 
 ---
-*Vytvořeno automaticky pro Profi Kadeřnickou Kartu (Optimalizováno pro Synology NAS)*
+
+## 🚀 1. První instalace
+Pokud aplikaci spouštíte poprvé nebo chcete čistý reset:
+
+1. nahrajte obsah složky `deploy/` do webové složky na serveru,
+2. nastavte připojení k databázi v `db.php`,
+3. otevřete v prohlížeči:
+
+```text
+https://vasedomena.cz/install.php?run=1
+```
+
+Tento krok automaticky:
+- vytvoří tabulky,
+- připraví základ aplikace,
+- naimportuje materiály a produkty z CSV souborů.
+
+---
+
+## 🔄 2. Aktualizace existující instalace
+Pokud už systém běží a jen nahráváte novou verzi:
+
+1. přepište server obsahem `deploy/`,
+2. pak spusťte:
+
+```text
+https://vasedomena.cz/migrate.php
+```
+
+To doplní nové sloupce a úpravy DB bez nutnosti čisté reinstalace.
+
+> Po této verzi se tímto krokem doplní i novější pole jako např. `shopping_qty` a `stock_state`.
+
+---
+
+## 🗄️ 3. Databáze
+Upravte soubor `db.php` podle NAS/serveru:
+- `host` → většinou `127.0.0.1` nebo `localhost`
+- `dbname` → název databáze
+- `username` / `password`
+- případně port MariaDB (`3306` nebo `3307` podle Synology)
+
+Pokud `install.php` nepoužijete, je možné ručně importovat `schema.sql` přes phpMyAdmin/Adminer.
+
+---
+
+## 🏗️ 4. Doporučený postup pro Synology NAS
+
+### A) Příprava balíčků
+V **Centru balíčků** nainstalujte:
+- `Web Station`
+- `PHP 8.2` (nebo dostupnou 8.x)
+- `MariaDB 10`
+- volitelně `phpMyAdmin` / `Adminer`
+
+### B) PHP profil ve Web Station
+Ve **Web Station** zapněte alespoň tato rozšíření:
+- `pdo_mysql`
+- `mysqli`
+- `mbstring`
+- `json`
+- `openssl`
+- `curl`
+
+### C) Databáze
+1. vytvořte databázi, např. `karta`,
+2. vytvořte uživatele s právem k této DB,
+3. údaje zapište do `db.php`.
+
+> Pokud nejde otevřít `phpMyAdmin` přes QuickConnect, bývá potřeba databázi vytvořit z lokální sítě, přes VPN nebo přímo v DSM / Admineru.
+
+### D) Upload aplikace
+Do webové složky NASu nahrajte obsah `deploy/`, typicky do:
+
+```text
+/web/karta/
+```
+
+Pak by aplikace běžela např. na:
+
+```text
+https://vas-nas.cz/karta/
+```
+
+---
+
+## ✅ 5. Kontrolní checklist po nasazení
+Po uploadu ověřte:
+- jde otevřít `login.php`,
+- funguje přihlášení,
+- funguje `index.php`,
+- ve financích se načítá nákupní seznam,
+- rychlý prodej funguje i s našeptávačem,
+- po update byl spuštěný `migrate.php`.
+
+---
+
+## 📱 6. PWA / cache po aktualizaci
+Aplikace používá service worker.
+Po nasazení nové verze doporučeno:
+- udělat tvrdý refresh: `Ctrl/Cmd + Shift + R`,
+- případně zavřít a znovu otevřít aplikaci z plochy.
+
+To je důležité hlavně po změnách v `app.js`, `style.css` a PWA chování.
+
+---
+
+## ⚠️ Praktická poznámka
+- `install.php` **ponecháváme v projektu** pro první instalaci a rychlé obnovení.
+- Pro běžný update produkce stačí většinou:
+  1. nahrát nový `deploy/`
+  2. spustit `migrate.php`
+  3. udělat tvrdý refresh
+
+---
+
+*Nasazovací plán pro Profi Kadeřnickou Kartu – optimalizováno pro Synology NAS.*
