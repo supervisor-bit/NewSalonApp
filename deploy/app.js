@@ -2379,6 +2379,7 @@
                 </div>
             `;
         }).join('');
+        renderStockManagerOverview();
     }
 
     function toggleCatalogReceiveMode(forceState) {
@@ -2598,11 +2599,85 @@
         }
     }
 
+    function renderStockManagerOverview() {
+        const root = document.getElementById('stock-manager-overview');
+        if (!root || !Array.isArray(MATERIALS_DATA)) return;
+
+        const materials = MATERIALS_DATA.slice();
+        const openedCount = materials.filter(item => (item.stock_state || 'none') === 'opened').length;
+        const lowCount = materials.filter(item => (item.stock_state || 'none') === 'low').length;
+        const orderedCount = materials.filter(item => (item.stock_state || 'none') === 'ordered').length;
+        const shoppingItems = materials
+            .filter(item => Number(item.needs_buying) === 1 || ['low', 'ordered'].includes(item.stock_state || 'none'))
+            .sort((a, b) => {
+                const rank = state => state === 'low' ? 0 : state === 'ordered' ? 1 : 2;
+                return rank(a.stock_state || 'none') - rank(b.stock_state || 'none')
+                    || `${a.brand || ''} ${a.category || ''} ${a.name || ''}`.localeCompare(`${b.brand || ''} ${b.category || ''} ${b.name || ''}`, 'cs');
+            });
+        const shoppingQty = shoppingItems.reduce((sum, item) => sum + Math.max(1, parseInt(item.shopping_qty, 10) || 1), 0);
+        const latestReceipt = Array.isArray(catalogReceiptLog) && catalogReceiptLog.length ? catalogReceiptLog[0] : null;
+
+        root.innerHTML = `
+            <div class="stock-overview-grid">
+                <div class="stock-overview-card accent-low">
+                    <div class="stock-overview-label">Dochází</div>
+                    <div class="stock-overview-value">${lowCount}</div>
+                    <div class="stock-overview-meta">na objednání co nejdřív</div>
+                </div>
+                <div class="stock-overview-card accent-ordered">
+                    <div class="stock-overview-label">Objednáno</div>
+                    <div class="stock-overview-value">${orderedCount}</div>
+                    <div class="stock-overview-meta">čeká na příjem</div>
+                </div>
+                <div class="stock-overview-card accent-opened">
+                    <div class="stock-overview-label">Rozdělané</div>
+                    <div class="stock-overview-value">${openedCount}</div>
+                    <div class="stock-overview-meta">jen přehled pro salon</div>
+                </div>
+                <div class="stock-overview-card accent-shopping">
+                    <div class="stock-overview-label">Na nákupu</div>
+                    <div class="stock-overview-value">${shoppingItems.length}</div>
+                    <div class="stock-overview-meta">celkem ${shoppingQty} ks</div>
+                </div>
+            </div>
+            <div class="stock-overview-panels">
+                <div class="stock-overview-panel">
+                    <div class="stock-overview-panel-title">Nejvíc urgentní teď</div>
+                    ${shoppingItems.length ? `
+                        <div class="stock-overview-list">
+                            ${shoppingItems.slice(0, 5).map(item => `
+                                <div class="stock-overview-list-item">
+                                    <div>
+                                        <div class="stock-overview-item-name">${escapeHtml(item.name || '')}</div>
+                                        <div class="stock-overview-item-note">${escapeHtml(item.category || '')} • ${escapeHtml(item.brand || '')}</div>
+                                    </div>
+                                    <span class="stock-overview-pill state-${escapeHtml(item.stock_state || 'none')}">${escapeHtml(getMaterialStateMeta(item.stock_state || 'none').short)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : '<div class="stock-overview-empty">Teď není nic akutního. 👍</div>'}
+                </div>
+                <div class="stock-overview-panel">
+                    <div class="stock-overview-panel-title">Poslední příjem</div>
+                    ${latestReceipt ? `
+                        <div class="stock-overview-receipt">
+                            <div class="stock-overview-item-name">${escapeHtml(latestReceipt.item_label || 'Položka')}</div>
+                            <div class="stock-overview-item-note">${escapeHtml(latestReceipt.batch_code ? `Dávka ${latestReceipt.batch_code}` : 'Samostatný příjem')} • ${escapeHtml(formatCatalogReceiptTime(latestReceipt.received_at || ''))}</div>
+                            <div class="stock-overview-receipt-meta">${escapeHtml(String(latestReceipt.qty || 1))} ks${latestReceipt.note ? ` • ${escapeHtml(latestReceipt.note)}` : ''}</div>
+                        </div>
+                    ` : '<div class="stock-overview-empty">Zatím tu není žádná příjemka.</div>'}
+                </div>
+            </div>
+        `;
+    }
+
     function renderCatalogList() {
         const listEl = document.getElementById('catalog-item-list');
         const badgesEl = document.getElementById('catalog-summary-badges');
         if (!listEl || !badgesEl) return;
 
+        const previousListScroll = listEl.scrollTop;
+        const previousWindowScroll = window.scrollY || window.pageYOffset || 0;
         const allItems = getCatalogItems();
         const query = normalizeSearchText(document.getElementById('catalog-search-input')?.value || '');
         const totals = {
@@ -2678,13 +2753,16 @@
             const stateButton = isMaterial
                 ? `<button type="button" class="btn-state-pc state-${meta.key}" data-material-id="${item.id}" data-material-state="${meta.key}" onclick="cycleMaterialState(${item.id}, this)" title="${meta.title}">${meta.short}</button>`
                 : '';
+            const quickStateTools = isMaterial ? `<div class="catalog-state-tools">${renderMaterialStateQuickSet(item.id, meta.key)}</div>` : '';
             const secondaryLine = isMaterial
                 ? `${escapeHtml(item.brand || '')} • ${escapeHtml(item.group || '')}${item.use_count ? ` • použito ${item.use_count}×` : ''}`
                 : `${escapeHtml(item.brand || '')}${item.price ? ` • ${escapeHtml(String(item.price))} Kč` : ''}${item.use_count ? ` • prodáno ${item.use_count}×` : ''}`;
             const receiveButton = `<button type="button" class="btn-menu" onclick="receiveCatalogItem('${item.type}', ${item.id})" style="padding:10px 12px; border-radius:10px; display:inline-flex; align-items:center; gap:6px; color:#0f766e; border-color:#99f6e4; background:#f0fdfa;" title="Zapsat příjem"><i data-lucide="package-check" style="width:16px; height:16px;"></i> Příjem</button>`;
+            const rowBg = !ean ? '#fffaf5' : (meta?.key === 'ordered' ? '#eff6ff' : (needsBuying ? '#fffbeb' : '#ffffff'));
+            const rowBorder = !ean ? '#fed7aa' : (meta?.key === 'ordered' ? '#bfdbfe' : (needsBuying ? '#fde68a' : '#e2e8f0'));
 
             return `
-                <div class="catalog-row" data-item-type="${item.type}" data-item-id="${item.id}" style="display:flex; justify-content:space-between; align-items:center; gap:16px; padding:14px 16px; border-radius:16px; background:${!ean ? '#fffaf5' : (needsBuying ? '#fffbeb' : '#ffffff')}; border:1px solid ${!ean ? '#fed7aa' : (needsBuying ? '#fde68a' : '#e2e8f0')}; transition:0.2s;">
+                <div class="catalog-row" data-item-type="${item.type}" data-item-id="${item.id}" style="display:flex; justify-content:space-between; align-items:center; gap:16px; padding:14px 16px; border-radius:16px; background:${rowBg}; border:1px solid ${rowBorder}; transition:0.2s;">
                     <div style="min-width:0; display:flex; flex-direction:column; gap:6px;">
                         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                             ${typeBadge}
@@ -2695,6 +2773,7 @@
                         </div>
                         <div style="font-size:15px; font-weight:800; color:#0f172a;">${escapeHtml(item.name || '')}</div>
                         <div style="font-size:12px; color:#64748b;">${secondaryLine}</div>
+                        ${quickStateTools}
                     </div>
                     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
                         ${eanBadge}
@@ -2709,6 +2788,12 @@
         }).join('');
 
         lucide.createIcons();
+        requestAnimationFrame(() => {
+            listEl.scrollTop = previousListScroll;
+            if (Math.abs((window.scrollY || window.pageYOffset || 0) - previousWindowScroll) > 4) {
+                window.scrollTo({ top: previousWindowScroll, behavior: 'auto' });
+            }
+        });
     }
 
     function initCatalogManager() {
@@ -2718,6 +2803,7 @@
         updateCatalogReceiveModeUi();
         renderCatalogReceiptLog();
         renderCatalogList();
+        renderStockManagerOverview();
         updateCatalogScanStatus(getCatalogDefaultStatusMessage(), 'neutral');
 
         document.addEventListener('click', function(e) {
@@ -2839,6 +2925,8 @@
         if (emptyIcon) {
             emptyIcon.style.color = hasStateAlert ? '#f59e0b' : '#10b981';
         }
+
+        renderStockManagerOverview();
     }
 
     function upsertShoppingRow(id, shoppingQty = 1, stockStateOverride = null) {
@@ -2864,6 +2952,7 @@
                 <div class="row-info">
                     <div class="name" style="font-size:18px;">${mat.name || ''}</div>
                     <div class="note" style="font-size:12px; text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">${rowNote}</div>
+                    <div style="margin-top:8px;">${renderMaterialStateQuickSet(id, currentState)}</div>
                 </div>
                 <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end;">
                     <div style="display:flex; align-items:center; gap:8px; background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:6px 8px;">
@@ -2906,12 +2995,28 @@
         }
     }
 
-    async function cycleMaterialState(id, btn) {
-        const currentState = btn?.dataset.materialState || (MATERIALS_DATA.find(m => m.id == id)?.stock_state ?? 'none');
-        const stateOrder = ['none', 'opened', 'low', 'ordered'];
-        const currentIndex = Math.max(0, stateOrder.indexOf(currentState));
-        const nextState = stateOrder[(currentIndex + 1) % stateOrder.length];
+    function renderMaterialStateQuickSet(materialId, stockState = 'none') {
+        const states = [
+            { key: 'none', short: 'Bez', title: 'Nastavit bez stavu' },
+            { key: 'opened', short: 'Roz', title: 'Nastavit Rozdělané' },
+            { key: 'low', short: 'Doch', title: 'Nastavit Dochází' },
+            { key: 'ordered', short: 'Obj', title: 'Nastavit Objednáno' }
+        ];
 
+        return `
+            <div class="state-quick-group" data-material-id="${materialId}">
+                ${states.map(state => `
+                    <button type="button"
+                        class="state-quick-btn ${stockState === state.key ? `is-active active-${state.key}` : ''}"
+                        data-state="${state.key}"
+                        onclick="setMaterialState(${materialId}, '${state.key}', this)"
+                        title="${state.title}">${state.short}</button>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    async function setMaterialState(id, nextState, btn = null) {
         try {
             const formData = new FormData();
             formData.append('material_id', id);
@@ -2922,12 +3027,17 @@
             const json = await resp.json();
             if (!json.success) throw new Error(json.error || 'Nepodařilo se upravit stav.');
 
+            const meta = getMaterialStateMeta(json.stock_state);
             document.querySelectorAll(`.btn-state-pc[data-material-id="${id}"]`).forEach(stateBtn => {
-                const meta = getMaterialStateMeta(json.stock_state);
                 stateBtn.dataset.materialState = meta.key;
                 stateBtn.className = `btn-state-pc state-${meta.key}`;
                 stateBtn.textContent = meta.short;
                 stateBtn.title = meta.title;
+            });
+
+            document.querySelectorAll(`.state-quick-group[data-material-id="${id}"] .state-quick-btn`).forEach(quickBtn => {
+                const quickState = quickBtn.dataset.state || 'none';
+                quickBtn.className = `state-quick-btn${quickState === meta.key ? ` is-active active-${quickState}` : ''}`;
             });
 
             document.querySelectorAll(`.btn-shop-pc[data-material-id="${id}"]`).forEach(shopBtn => {
@@ -2962,9 +3072,18 @@
                 catalogItem.needs_buying = json.new_status;
             }
             renderCatalogList();
+            if (btn) btn.blur();
         } catch (e) {
             console.error(e);
         }
+    }
+
+    async function cycleMaterialState(id, btn) {
+        const currentState = btn?.dataset.materialState || (MATERIALS_DATA.find(m => m.id == id)?.stock_state ?? 'none');
+        const stateOrder = ['none', 'opened', 'low', 'ordered'];
+        const currentIndex = Math.max(0, stateOrder.indexOf(currentState));
+        const nextState = stateOrder[(currentIndex + 1) % stateOrder.length];
+        await setMaterialState(id, nextState, btn);
     }
 
     async function changeShoppingQty(id, delta, btn) {

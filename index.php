@@ -415,6 +415,8 @@
                         </div>
                     </div>
                 </div>
+
+                <div id="stock-manager-overview" class="stock-manager-overview"></div>
                 
                 <div class="acc-list-premium" id="shopping-list-container">
                     <!-- Prázdný stav (vždy v DOMu, zobrazen jen když je potřeba) -->
@@ -437,6 +439,13 @@
                                 <div class="row-info">
                                     <div class="name" style="font-size:18px;"><?= htmlspecialchars($sl['name']) ?></div>
                                     <div class="note" style="font-size:12px; text-transform:uppercase; font-weight:600; letter-spacing:0.5px;"><?= htmlspecialchars($sl['category']) ?> (<?= htmlspecialchars($sl['brand']) ?>) • <?= (($sl['stock_state'] ?? 'none') === 'ordered') ? 'objednáno • čeká na příjem' : 'objednat' ?> <span class="shopping-qty-inline"><?= $shoppingQty ?></span> ks</div>
+                                    <?php $rowState = $sl['stock_state'] ?? 'none'; ?>
+                                    <div class="state-quick-group" data-material-id="<?= (int)$sl['id'] ?>" style="margin-top:8px;">
+                                        <button type="button" class="state-quick-btn <?= $rowState === 'none' ? 'is-active active-none' : '' ?>" data-state="none" onclick="setMaterialState(<?= (int)$sl['id'] ?>, 'none', this)">Bez</button>
+                                        <button type="button" class="state-quick-btn <?= $rowState === 'opened' ? 'is-active active-opened' : '' ?>" data-state="opened" onclick="setMaterialState(<?= (int)$sl['id'] ?>, 'opened', this)">Roz</button>
+                                        <button type="button" class="state-quick-btn <?= $rowState === 'low' ? 'is-active active-low' : '' ?>" data-state="low" onclick="setMaterialState(<?= (int)$sl['id'] ?>, 'low', this)">Doch</button>
+                                        <button type="button" class="state-quick-btn <?= $rowState === 'ordered' ? 'is-active active-ordered' : '' ?>" data-state="ordered" onclick="setMaterialState(<?= (int)$sl['id'] ?>, 'ordered', this)">Obj</button>
+                                    </div>
                                 </div>
                                 <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end;">
                                     <div style="display:flex; align-items:center; gap:8px; background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:6px 8px;">
