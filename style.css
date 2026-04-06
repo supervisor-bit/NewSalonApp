@@ -1064,6 +1064,13 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
 }
 
 /* QUICK SALE LAYOUT */
+.direct-sales-stats-grid {
+    position: relative;
+    z-index: 1;
+    background: #f8fafc;
+    padding-bottom: 8px;
+}
+
 .direct-sales-products-panel {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
@@ -1113,6 +1120,15 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
     display: grid;
     grid-template-columns: 180px minmax(0, 1fr);
     gap: 10px;
+}
+
+.direct-sales-side-stack {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    padding-right: 4px;
 }
 
 #direct-sales-box .product-row {
@@ -1226,6 +1242,13 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
 
     .direct-sales-meta-grid {
         grid-template-columns: 1fr;
+    }
+
+    .direct-sales-side-stack {
+        position: static;
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
     }
 }
 

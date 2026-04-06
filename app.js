@@ -77,6 +77,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         updateDesktopInstallUi();
         initDirectSaleAutocomplete();
+        initDirectSaleFormGuards();
     });
 
     let actionDialogResolver = null;
@@ -914,6 +915,7 @@
             if (e.key === 'Escape') { listEl.style.display = 'none'; return; }
             if (e.key === 'Enter') {
                 e.preventDefault();
+                e.stopPropagation();
                 let activeIdx = Array.from(items).findIndex(i => i.classList.contains('ac-active'));
                 if(activeIdx > -1) {
                     items[activeIdx].click();
@@ -1298,16 +1300,85 @@
         });
     }
 
+    function initDirectSaleFormGuards() {
+        const form = document.getElementById('direct-sale-form');
+        if (!form || form.dataset.guardsBound === '1') return;
+
+        form.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter') return;
+
+            const target = e.target;
+            const tagName = target?.tagName?.toLowerCase();
+            const inputType = target?.type?.toLowerCase();
+            const isProductSearch = target?.classList?.contains('product-search');
+            const isProductAmount = target?.classList?.contains('product-amount');
+
+            if (tagName === 'textarea' || tagName === 'button' || inputType === 'submit' || isProductSearch || isProductAmount) {
+                return;
+            }
+
+            e.preventDefault();
+        });
+
+        form.addEventListener('submit', async function(e) {
+            if (form.dataset.confirmedSubmit === '1') {
+                form.dataset.confirmedSubmit = '0';
+                return;
+            }
+
+            e.preventDefault();
+
+            if (typeof window.refreshDirectSaleBoxes === 'function') {
+                window.refreshDirectSaleBoxes();
+            } else if (typeof scheduleDirectSaleSummaryRefresh === 'function') {
+                scheduleDirectSaleSummaryRefresh();
+            }
+
+            const items = parseInt(document.getElementById('direct-sale-line-count')?.textContent || '0', 10) || 0;
+            const qty = parseInt(document.getElementById('direct-sale-qty-total')?.textContent || '0', 10) || 0;
+            const subtotal = (document.getElementById('direct-sale-subtotal')?.textContent || '0 Kč').trim();
+
+            const confirmed = await openActionDialog({
+                title: 'Uložit rychlý prodej?',
+                message: items > 0
+                    ? `Do tržeb se uloží ${items} položek, ${qty} ks za ${subtotal}.`
+                    : 'Opravdu chcete uložit rychlý prodej do tržeb?',
+                confirmText: 'Uložit prodej',
+                cancelText: 'Zpět',
+                variant: 'primary',
+                showCancel: true
+            });
+
+            if (!confirmed) return;
+
+            form.dataset.confirmedSubmit = '1';
+            form.submit();
+        });
+
+        form.dataset.guardsBound = '1';
+    }
+
     function scrollDirectSaleRowIntoView(rowEl) {
         if (!rowEl) return;
+
         const salesBox = document.getElementById('direct-sales-box');
-        if (salesBox) {
-            salesBox.scrollTo({
-                top: Math.max(0, rowEl.offsetTop - 160),
+        const contentEl = salesBox?.querySelector('.karta-content');
+        const stickyStatsEl = salesBox?.querySelector('.direct-sales-stats-grid');
+        const scrollHost = contentEl || salesBox;
+
+        if (scrollHost && typeof scrollHost.scrollTo === 'function') {
+            const hostRect = scrollHost.getBoundingClientRect();
+            const rowRect = rowEl.getBoundingClientRect();
+            const stickyOffset = Math.min((stickyStatsEl?.offsetHeight || 0), 110) + 16;
+            const nextTop = scrollHost.scrollTop + (rowRect.top - hostRect.top) - stickyOffset;
+
+            scrollHost.scrollTo({
+                top: Math.max(0, nextTop),
                 behavior: 'smooth'
             });
         }
-        rowEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        rowEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
     }
 
     function removeProductRow(btn) {

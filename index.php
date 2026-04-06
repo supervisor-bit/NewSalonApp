@@ -766,7 +766,7 @@
                     </script>
                 </div>
 
-                <div style="display:flex; flex-direction:column; gap:18px;">
+                <div class="direct-sales-side-stack" style="display:flex; flex-direction:column; gap:18px;">
                     <div class="sekce" style="margin-bottom:0;">
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px;">
                             <span class="sekce-nadpis" style="margin:0;">Dnešní rychlé prodeje</span>
