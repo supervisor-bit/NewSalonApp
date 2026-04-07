@@ -70,15 +70,6 @@ CREATE TABLE IF NOT EXISTS `formulas` (
   FOREIGN KEY (`material_id`) REFERENCES `materials`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `materials` (`category`, `name`) VALUES
-('Majirel', '1.0 Černá'),
-('Majirel', '7.0 Střední blond'),
-('Majirel', '10.1 Platinová'),
-('Inoa', '4.15 Kaštanová'),
-('Oxydant', '3% (10 Vol.)'),
-('Oxydant', '6% (20 Vol.)'),
-('Oxydant', '9% (30 Vol.)');
-
 CREATE TABLE IF NOT EXISTS `products` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
   `brand` VARCHAR(50) NOT NULL DEFAULT 'Ostatní',

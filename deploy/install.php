@@ -94,6 +94,34 @@ function buildImportedProductName(string $brandLabel, string $line, string $prod
     return trim($name);
 }
 
+function resolveMaterialCategoryLabel(string $line, string $type = ''): string {
+    $line = trim($line);
+    $type = trim($type);
+
+    $lineMap = [
+        'Inoa' => 'Inoa',
+        'Inoa Boosters' => 'Inoa Boosters',
+        'Majirel' => 'Majirel',
+        'Majirel Boosters' => 'Majirel Boosters',
+        'Majirel Cool Cover' => 'Majirel Cool Cover',
+        'Majirel High Lift' => 'Majirel High Lift',
+        'DIAcolor' => 'DIAcolor',
+        'DIALight' => 'DIALight',
+        'DIALight Boosters' => 'DIALight Boosters',
+        'DIALight Boostery' => 'DIALight Boostery',
+        'Blond Studio' => 'Blond Studio',
+        'Oxydant' => 'Oxidant',
+        'Oxidant' => 'Oxidant',
+        'Preparace' => 'Preparace',
+        'Ostatní' => 'Ostatní',
+    ];
+
+    $normalizedLine = $lineMap[$line] ?? $line;
+    $normalizedType = $normalizedLine === 'DIAcolor' ? 'Přeliv' : $type;
+
+    return $normalizedType !== '' ? $normalizedLine . ' (' . $normalizedType . ')' : $normalizedLine;
+}
+
 if (!isset($_GET['run'])) {
     echo "<div class='warning'>⚠️ VAROVÁNÍ: Spuštění tohoto skriptu SMAŽE veškerá současná data a nastaví čistou databázi!</div>";
     echo "<p>Výchozí instalace vytvoří čistý systém bez demo klienta. Číselníky materiálů a produktů se importují jen na vyžádání.</p>";
@@ -137,8 +165,9 @@ try {
             fgetcsv($handle, 0, ';');
             while (($data = fgetcsv($handle, 0, ';')) !== FALSE) {
                 if (count($data) < 3) continue;
+                $categoryLabel = resolveMaterialCategoryLabel((string)($data[1] ?? ''), (string)($data[3] ?? ''));
                 $stmt = $pdo->prepare("INSERT INTO materials (brand, category, name) VALUES (?, ?, ?)");
-                $stmt->execute([$data[0], $data[1], $data[2]]);
+                $stmt->execute([(string)($data[0] ?? ''), $categoryLabel, (string)($data[2] ?? '')]);
                 $materialCount++;
             }
             fclose($handle);

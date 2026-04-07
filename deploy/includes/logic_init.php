@@ -153,6 +153,39 @@ if (!$setup_needed) {
         $pdo->exec("UPDATE materials SET shopping_qty = 1 WHERE shopping_qty IS NULL OR shopping_qty < 1");
         $pdo->exec("UPDATE materials SET stock_state = 'none' WHERE stock_state IS NULL OR stock_state = '' OR stock_state NOT IN ('none', 'opened', 'low', 'ordered')");
 
+        $materialCategoryMap = [
+            'Inoa' => 'Inoa (Barva)',
+            'Inoa Boosters' => 'Inoa Boosters (Barva)',
+            'Majirel' => 'Majirel (Barva)',
+            'Majirel Boosters' => 'Majirel Boosters (Barva)',
+            'Majirel Cool Cover' => 'Majirel Cool Cover (Barva)',
+            'Majirel High Lift' => 'Majirel High Lift (Barva)',
+            'DIAcolor' => 'DIAcolor (Přeliv)',
+            'DIALight' => 'DIALight (Přeliv)',
+            'DIALight Boosters' => 'DIALight Boosters (Přeliv)',
+            'DIALight Boostery' => 'DIALight Boostery (Přeliv)',
+            'Blond Studio' => 'Blond Studio (Melír)',
+            'Oxydant' => 'Oxidant (Oxy)',
+            'Oxidant' => 'Oxidant (Oxy)',
+            'Preparace' => 'Preparace (Trvalá)',
+            'Ostatní' => 'Ostatní (Speciál)',
+        ];
+        $normalizeMaterialCategoryStmt = $pdo->prepare("UPDATE materials SET category = ? WHERE category = ?");
+        foreach ($materialCategoryMap as $oldCategory => $newCategory) {
+            $normalizeMaterialCategoryStmt->execute([$newCategory, $oldCategory]);
+        }
+
+        $materialsCount = (int)($pdo->query("SELECT COUNT(*) FROM materials")->fetchColumn() ?: 0);
+        if ($materialsCount > 100) {
+            $pdo->exec("DELETE m1 FROM materials m1
+                INNER JOIN materials m2
+                    ON m1.id > m2.id
+                   AND COALESCE(m1.brand, '') = COALESCE(m2.brand, '')
+                   AND COALESCE(m1.category, '') = COALESCE(m2.category, '')
+                   AND COALESCE(m1.name, '') = COALESCE(m2.name, '')
+            ");
+        }
+
         $productColumns = $pdo->query("SHOW COLUMNS FROM products")->fetchAll(PDO::FETCH_COLUMN);
         if (!in_array('is_active', $productColumns, true)) {
             $pdo->exec("ALTER TABLE products ADD COLUMN is_active TINYINT(1) DEFAULT 1");

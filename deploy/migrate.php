@@ -50,6 +50,44 @@ try {
         echo "Sloupec 'is_active' u materiálů už existuje.\n";
     }
 
+    $normalizedMaterialGroups = 0;
+    $materialCategoryMap = [
+        'Inoa' => 'Inoa (Barva)',
+        'Inoa Boosters' => 'Inoa Boosters (Barva)',
+        'Majirel' => 'Majirel (Barva)',
+        'Majirel Boosters' => 'Majirel Boosters (Barva)',
+        'Majirel Cool Cover' => 'Majirel Cool Cover (Barva)',
+        'Majirel High Lift' => 'Majirel High Lift (Barva)',
+        'DIAcolor' => 'DIAcolor (Přeliv)',
+        'DIALight' => 'DIALight (Přeliv)',
+        'DIALight Boosters' => 'DIALight Boosters (Přeliv)',
+        'DIALight Boostery' => 'DIALight Boostery (Přeliv)',
+        'Blond Studio' => 'Blond Studio (Melír)',
+        'Oxydant' => 'Oxidant (Oxy)',
+        'Oxidant' => 'Oxidant (Oxy)',
+        'Preparace' => 'Preparace (Trvalá)',
+        'Ostatní' => 'Ostatní (Speciál)',
+    ];
+    $normalizeMaterialCategoryStmt = $pdo->prepare("UPDATE materials SET category = ? WHERE category = ?");
+    foreach ($materialCategoryMap as $oldCategory => $newCategory) {
+        $normalizeMaterialCategoryStmt->execute([$newCategory, $oldCategory]);
+        $normalizedMaterialGroups += $normalizeMaterialCategoryStmt->rowCount();
+    }
+    echo "Sjednocení kategorií materiálu dokončeno (upraveno $normalizedMaterialGroups záznamů).\n";
+
+    $legacyMaterialCleanup = 0;
+    $materialsCount = (int)($pdo->query("SELECT COUNT(*) FROM materials")->fetchColumn() ?: 0);
+    if ($materialsCount > 100) {
+        $legacyMaterialCleanup = (int)$pdo->exec("DELETE m1 FROM materials m1
+            INNER JOIN materials m2
+                ON m1.id > m2.id
+               AND COALESCE(m1.brand, '') = COALESCE(m2.brand, '')
+               AND COALESCE(m1.category, '') = COALESCE(m2.category, '')
+               AND COALESCE(m1.name, '') = COALESCE(m2.name, '')
+        ");
+    }
+    echo "Vyčištění duplicitních materiálů dokončeno (smazáno $legacyMaterialCleanup záznamů).\n";
+
     $productColumns = $pdo->query("DESCRIBE products")->fetchAll(PDO::FETCH_COLUMN);
     if (!in_array('ean', $productColumns)) {
         echo "Sloupec 'ean' u produktů chybí. Přidávám ho...\n";
