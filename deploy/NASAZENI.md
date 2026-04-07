@@ -127,6 +127,7 @@ To je důležité hlavně po změnách v `app.js`, `style.css` a PWA chování.
 
 ## ⚠️ Praktická poznámka
 - `install.php` **ponecháváme v projektu** pro první instalaci a rychlé obnovení.
+- na produkci je ale nyní **uzamčený**; pro dočasné odemknutí nastavte v `.env` `INSTALL_KEY=...` a použijte `install.php?key=...`.
 - výchozí `install.php?run=1` udělá čistou instalaci bez demo klienta; číselníky se přidávají jen přes `&catalog=1`.
 - Pro běžný update produkce stačí většinou:
   1. nahrát nový `deploy/`

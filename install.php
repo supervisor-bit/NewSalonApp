@@ -1,6 +1,22 @@
 <?php
 require_once 'db.php';
 
+$installKey = trim((string)(getenv('INSTALL_KEY') ?: ''));
+$providedInstallKey = trim((string)($_GET['key'] ?? $_POST['key'] ?? ''));
+$remoteAddr = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+$isLocalInstallRequest = in_array($remoteAddr, ['127.0.0.1', '::1'], true);
+$installAuthorized = $isLocalInstallRequest || ($installKey !== '' && hash_equals($installKey, $providedInstallKey));
+
+if (!$installAuthorized) {
+    if (!headers_sent()) {
+        http_response_code(403);
+        header('Content-Type: text/html; charset=UTF-8');
+    }
+
+    echo "<!DOCTYPE html><html lang='cs'><head><meta charset='UTF-8'><title>Instalátor uzamčen</title><style>body{font-family:Inter,Arial,sans-serif;background:#f8fafc;color:#1e293b;padding:40px}.card{max-width:720px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:28px;box-shadow:0 12px 32px rgba(15,23,42,.08)}h1{margin-top:0}code{background:#f1f5f9;padding:2px 6px;border-radius:6px}</style></head><body><div class='card'><h1>🔒 Instalační skript je uzamčen</h1><p>Z bezpečnostních důvodů je `install.php` na produkci vypnutý.</p><p>Pro dočasné odemknutí nastavte v <code>.env</code> proměnnou <code>INSTALL_KEY</code> a otevřete adresu ve tvaru <code>install.php?key=VASE_HESLO</code>.</p><p>Lokální požadavky z tohoto serveru zůstávají povolené.</p></div></body></html>";
+    exit;
+}
+
 // Zpracování smazání instalátoru
 if (isset($_POST['delete_self'])) {
     unlink(__FILE__);

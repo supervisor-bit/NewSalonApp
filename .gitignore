@@ -10,3 +10,6 @@ tmp/
 .env
 .env.*
 database.db
+
+# Local backups
+backups/
