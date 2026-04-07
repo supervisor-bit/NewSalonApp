@@ -92,7 +92,9 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'clients_pulse') {
                 </div>
             </a>
         <?php endforeach; ?>
-        <div id="no-results" style="display:none; text-align:center; padding:30px; color:#94a3b8; font-weight:600;">Žádný klient nenalezen.</div>
+        <div id="no-results" style="display:<?= empty($clients) ? 'block' : 'none' ?>; text-align:center; padding:30px; color:#94a3b8; font-weight:600;">
+            <?= empty($clients) ? 'Zatím tu nejsou žádní klienti.' : 'Žádný klient nenalezen.' ?>
+        </div>
     </ul>
 
     <?php if (isset($_GET['success'])): ?>
@@ -138,7 +140,13 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'clients_pulse') {
             });
 
             if (noResults) {
-                noResults.style.display = found === 0 ? 'block' : 'none';
+                if (items.length === 0) {
+                    noResults.textContent = 'Zatím tu nejsou žádní klienti.';
+                    noResults.style.display = 'block';
+                } else {
+                    noResults.textContent = 'Žádný klient nenalezen.';
+                    noResults.style.display = found === 0 ? 'block' : 'none';
+                }
             }
         }
 
