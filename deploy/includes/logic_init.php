@@ -184,6 +184,11 @@ if (!$setup_needed) {
                    AND COALESCE(m1.category, '') = COALESCE(m2.category, '')
                    AND COALESCE(m1.name, '') = COALESCE(m2.name, '')
             ");
+
+            $pdo->exec("DELETE FROM materials
+                WHERE category IN ('Oxydant', 'Oxydant (Oxy)', 'Oxidant', 'Oxidant (Oxy)')
+                  AND name IN ('3% (10 Vol.)', '6% (20 Vol.)', '9% (30 Vol.)')
+            ");
         }
 
         $productColumns = $pdo->query("SHOW COLUMNS FROM products")->fetchAll(PDO::FETCH_COLUMN);

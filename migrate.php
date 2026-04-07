@@ -85,6 +85,11 @@ try {
                AND COALESCE(m1.category, '') = COALESCE(m2.category, '')
                AND COALESCE(m1.name, '') = COALESCE(m2.name, '')
         ");
+
+        $legacyMaterialCleanup += (int)$pdo->exec("DELETE FROM materials
+            WHERE category IN ('Oxydant', 'Oxydant (Oxy)', 'Oxidant', 'Oxidant (Oxy)')
+              AND name IN ('3% (10 Vol.)', '6% (20 Vol.)', '9% (30 Vol.)')
+        ");
     }
     echo "Vyčištění duplicitních materiálů dokončeno (smazáno $legacyMaterialCleanup záznamů).\n";
 
