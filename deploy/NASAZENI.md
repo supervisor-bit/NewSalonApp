@@ -20,7 +20,20 @@ https://vasedomena.cz/install.php?run=1
 Tento krok automaticky:
 - vytvoří tabulky,
 - připraví základ aplikace,
-- naimportuje materiály a produkty z CSV souborů.
+- **nevytváří demo klienta**,
+- **číselníky importuje jen na vyžádání**.
+
+Pokud chcete při první instalaci rovnou nahrát číselníky materiálů a produktů, použijte:
+
+```text
+https://vasedomena.cz/install.php?run=1&catalog=1
+```
+
+Demo klient se vytvoří jen při explicitním parametru:
+
+```text
+https://vasedomena.cz/install.php?run=1&catalog=1&demo=1
+```
 
 ---
 
@@ -114,6 +127,7 @@ To je důležité hlavně po změnách v `app.js`, `style.css` a PWA chování.
 
 ## ⚠️ Praktická poznámka
 - `install.php` **ponecháváme v projektu** pro první instalaci a rychlé obnovení.
+- výchozí `install.php?run=1` udělá čistou instalaci bez demo klienta; číselníky se přidávají jen přes `&catalog=1`.
 - Pro běžný update produkce stačí většinou:
   1. nahrát nový `deploy/`
   2. spustit `migrate.php`

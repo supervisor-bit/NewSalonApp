@@ -19,9 +19,11 @@ echo "<!DOCTYPE html>
         h1 { color: #0f172a; font-size: 24px; margin-top: 0; }
         .warning { background: #fff1f2; border: 1px solid #fee2e2; color: #be123c; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; }
         .success { color: #10b981; font-weight: 600; margin: 5px 0; }
+        .info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 15px; border-radius: 8px; margin: 10px 0; }
         .btn { display: inline-block; padding: 12px 24px; background: #0f172a; color: #fff; text-decoration: none; border: none; border-radius: 8px; font-weight: 700; margin-top: 10px; cursor: pointer; }
         .btn:hover { background: #1e293b; }
         .btn-green { background: #10b981; } .btn-green:hover { background: #059669; }
+        .btn-secondary { background: #475569; } .btn-secondary:hover { background: #334155; }
         .btn-red { background: #ef4444; margin-top: 30px; font-size: 13px; } .btn-red:hover { background: #dc2626; }
     </style>
 </head>
@@ -60,11 +62,19 @@ function resolveImportCsv(array $preferredNames, array $patterns): ?string {
 
 if (!isset($_GET['run'])) {
     echo "<div class='warning'>⚠️ VAROVÁNÍ: Spuštění tohoto skriptu SMAŽE veškerá současná data a nastaví čistou databázi!</div>";
-    echo "<p>Chcete-li pokračovat s novou instalací a importem dat (včetně demo záznamu klienta), klikněte níže:</p>";
-    echo "<a href='?run=1' class='btn'>SPUSTIT INSTALACI A IMPORT</a>";
+    echo "<p>Výchozí instalace vytvoří čistý systém bez demo klienta. Číselníky materiálů a produktů se importují jen na vyžádání.</p>";
+    echo "<div style='display:flex; gap:10px; flex-wrap:wrap;'>";
+    echo "<a href='?run=1' class='btn'>JEN ČISTÁ INSTALACE</a>";
+    echo "<a href='?run=1&catalog=1' class='btn btn-green'>INSTALACE + ČÍSELNÍKY</a>";
+    echo "<a href='?run=1&catalog=1&demo=1' class='btn btn-secondary'>INSTALACE + ČÍSELNÍKY + DEMO</a>";
+    echo "</div>";
+    echo "<p style='margin-top:14px; font-size:13px; color:#64748b;'>Demo klient se vytvoří jen při parametru <code>demo=1</code>.</p>";
     echo "</div></body></html>";
     exit;
 }
+
+$shouldImportCatalogs = (($_GET['catalog'] ?? '0') === '1') || isset($_GET['materials_csv']) || isset($_GET['products_csv']);
+$shouldCreateDemoClient = (($_GET['demo'] ?? '0') === '1');
 
 try {
     // 1. Spuštění schématu
@@ -80,67 +90,74 @@ try {
     $pdo->exec("SET FOREIGN_KEY_CHECKS = 1;");
     echo "<div class='success'>✅ Databázová struktura i tabulka uživatelů obnovena.</div>";
 
-    // 2. Import barev
-    $materialCount = 0;
-    $materialsFile = resolveImportCsv(
-        [$_GET['materials_csv'] ?? '', getenv('MATERIALS_CSV') ?: '', 'barvy.csv', 'materials.csv'],
-        ['barvy*.csv', 'materials*.csv']
-    );
+    if ($shouldImportCatalogs) {
+        // 2. Import barev
+        $materialCount = 0;
+        $materialsFile = resolveImportCsv(
+            [$_GET['materials_csv'] ?? '', getenv('MATERIALS_CSV') ?: '', 'barvy.csv', 'materials.csv'],
+            ['barvy*.csv', 'materials*.csv']
+        );
 
-    if ($materialsFile) {
-        $handle = fopen($materialsFile, 'r');
-        fgetcsv($handle, 0, ';');
-        while (($data = fgetcsv($handle, 0, ';')) !== FALSE) {
-            if (count($data) < 3) continue;
-            $stmt = $pdo->prepare("INSERT INTO materials (brand, category, name) VALUES (?, ?, ?)");
-            $stmt->execute([$data[0], $data[1], $data[2]]);
-            $materialCount++;
+        if ($materialsFile) {
+            $handle = fopen($materialsFile, 'r');
+            fgetcsv($handle, 0, ';');
+            while (($data = fgetcsv($handle, 0, ';')) !== FALSE) {
+                if (count($data) < 3) continue;
+                $stmt = $pdo->prepare("INSERT INTO materials (brand, category, name) VALUES (?, ?, ?)");
+                $stmt->execute([$data[0], $data[1], $data[2]]);
+                $materialCount++;
+            }
+            fclose($handle);
+            echo "<div class='success'>✅ Importováno $materialCount odstínů barev ze souboru <b>" . htmlspecialchars(basename($materialsFile)) . "</b>.</div>";
+        } else {
+            echo "<div class='warning'>⚠️ Soubor s materiály nebyl nalezen. Aplikace hledá např. <code>barvy.csv</code> nebo libovolné <code>barvy*.csv</code>.</div>";
         }
-        fclose($handle);
-        echo "<div class='success'>✅ Importováno $materialCount odstínů barev ze souboru <b>" . htmlspecialchars(basename($materialsFile)) . "</b>.</div>";
-    } else {
-        echo "<div class='warning'>⚠️ Soubor s materiály nebyl nalezen. Aplikace hledá např. <code>barvy.csv</code> nebo libovolné <code>barvy*.csv</code>.</div>";
-    }
 
-    // 3. Import produktů
-    $productCount = 0;
-    $productsFile = resolveImportCsv(
-        [$_GET['products_csv'] ?? '', getenv('PRODUCTS_CSV') ?: '', 'produkty.csv', 'products.csv'],
-        ['produkty*.csv', 'products*.csv']
-    );
+        // 3. Import produktů
+        $productCount = 0;
+        $productsFile = resolveImportCsv(
+            [$_GET['products_csv'] ?? '', getenv('PRODUCTS_CSV') ?: '', 'produkty.csv', 'products.csv'],
+            ['produkty*.csv', 'products*.csv']
+        );
 
-    if ($productsFile) {
-        $handle = fopen($productsFile, 'r');
-        fgetcsv($handle, 0, ';');
-        while (($data = fgetcsv($handle, 0, ';')) !== FALSE) {
-            if (count($data) < 6) continue;
-            $fullName = $data[1] . ' - ' . $data[2] . ' (' . $data[3] . ')';
-            $stmt = $pdo->prepare("INSERT INTO products (brand, name, price) VALUES (?, ?, ?)");
-            $stmt->execute([$data[0], $fullName, (int)$data[5]]);
-            $productCount++;
+        if ($productsFile) {
+            $handle = fopen($productsFile, 'r');
+            fgetcsv($handle, 0, ';');
+            while (($data = fgetcsv($handle, 0, ';')) !== FALSE) {
+                if (count($data) < 6) continue;
+                $fullName = $data[1] . ' - ' . $data[2] . ' (' . $data[3] . ')';
+                $stmt = $pdo->prepare("INSERT INTO products (brand, name, price) VALUES (?, ?, ?)");
+                $stmt->execute([$data[0], $fullName, (int)$data[5]]);
+                $productCount++;
+            }
+            fclose($handle);
+            echo "<div class='success'>✅ Importováno $productCount produktů k prodeji ze souboru <b>" . htmlspecialchars(basename($productsFile)) . "</b>.</div>";
+        } else {
+            echo "<div class='warning'>⚠️ Soubor s produkty nebyl nalezen. Aplikace hledá např. <code>produkty.csv</code> nebo libovolné <code>produkty*.csv</code>.</div>";
         }
-        fclose($handle);
-        echo "<div class='success'>✅ Importováno $productCount produktů k prodeji ze souboru <b>" . htmlspecialchars(basename($productsFile)) . "</b>.</div>";
     } else {
-        echo "<div class='warning'>⚠️ Soubor s produkty nebyl nalezen. Aplikace hledá např. <code>produkty.csv</code> nebo libovolné <code>produkty*.csv</code>.</div>";
+        echo "<div class='info'>ℹ️ Číselníky se při této instalaci neimportovaly. Pokud je chcete nahrát, spusťte <code>install.php?run=1&catalog=1</code>.</div>";
     }
 
-    // 4. Vytvoření Demo dat (Jana Ukázková)
-    $stmt = $pdo->prepare("INSERT INTO clients (first_name, last_name, phone, allergy_note) VALUES (?, ?, ?, ?)");
-    $stmt->execute(['Jana', 'Ukázková', '+420 111 222 333', 'Alergie na PPD']);
-    $client_id = $pdo->lastInsertId();
+    if ($shouldCreateDemoClient) {
+        // 4. Vytvoření demo dat (Jana Ukázková)
+        $stmt = $pdo->prepare("INSERT INTO clients (first_name, last_name, phone, allergy_note) VALUES (?, ?, ?, ?)");
+        $stmt->execute(['Jana', 'Ukázková', '+420 111 222 333', 'Alergie na PPD']);
+        $client_id = $pdo->lastInsertId();
 
-    $stmt = $pdo->prepare("INSERT INTO visits (client_id, visit_date, hair_texture, hair_condition, note) VALUES (?, NOW(), ?, ?, ?)");
-    $stmt->execute([$client_id, 'Silné / Porézní', 'Středně poškozené', 'Ukázková návštěva s recepturou.']);
-    $visit_id = $pdo->lastInsertId();
+        $stmt = $pdo->prepare("INSERT INTO visits (client_id, visit_date, hair_texture, hair_condition, note) VALUES (?, NOW(), ?, ?, ?)");
+        $stmt->execute([$client_id, 'Silné / Porézní', 'Středně poškozené', 'Ukázková návštěva s recepturou.']);
+        $visit_id = $pdo->lastInsertId();
 
-    // Najdeme nějaký materiál pro recepturu
-    $mat = $pdo->query("SELECT id FROM materials WHERE category = 'Inoa' LIMIT 1")->fetch();
-    if ($mat) {
-        $stmt = $pdo->prepare("INSERT INTO formulas (visit_id, material_id, amount_g, bowl_name) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$visit_id, $mat['id'], 30, 'Miska 1']);
+        $mat = $pdo->query("SELECT id FROM materials WHERE category = 'Inoa' LIMIT 1")->fetch();
+        if ($mat) {
+            $stmt = $pdo->prepare("INSERT INTO formulas (visit_id, material_id, amount_g, bowl_name) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$visit_id, $mat['id'], 30, 'Miska 1']);
+        }
+        echo "<div class='success'>✅ Demo záznam klienta 'Jana Ukázková' byl vytvořen.</div>";
+    } else {
+        echo "<div class='info'>ℹ️ Demo klient se při této instalaci nevytváří.</div>";
     }
-    echo "<div class='success'>✅ Demo záznam klienta 'Jana Ukázková' byl vytvořen.</div>";
 
     echo "<h3>🎉 Vše je připraveno!</h3>";
     echo "<p>Nyní se můžete se přihlásit a začít pracovat.</p>";

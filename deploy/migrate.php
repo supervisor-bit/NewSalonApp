@@ -42,6 +42,14 @@ try {
         echo "Sloupec 'ean' u materiálů už existuje.\n";
     }
 
+    if (!in_array('is_active', $columns)) {
+        echo "Sloupec 'is_active' u materiálů chybí. Přidávám ho...\n";
+        $pdo->exec("ALTER TABLE materials ADD COLUMN is_active TINYINT(1) DEFAULT 1");
+        echo "Sloupec pro skrytí materiálů byl úspěšně přidán.\n";
+    } else {
+        echo "Sloupec 'is_active' u materiálů už existuje.\n";
+    }
+
     $productColumns = $pdo->query("DESCRIBE products")->fetchAll(PDO::FETCH_COLUMN);
     if (!in_array('ean', $productColumns)) {
         echo "Sloupec 'ean' u produktů chybí. Přidávám ho...\n";
@@ -51,10 +59,66 @@ try {
         echo "Sloupec 'ean' u produktů už existuje.\n";
     }
 
+    if (!in_array('is_active', $productColumns)) {
+        echo "Sloupec 'is_active' u produktů chybí. Přidávám ho...\n";
+        $pdo->exec("ALTER TABLE products ADD COLUMN is_active TINYINT(1) DEFAULT 1");
+        echo "Sloupec pro skrytí produktů byl úspěšně přidán.\n";
+    } else {
+        echo "Sloupec 'is_active' u produktů už existuje.\n";
+    }
+
     $pdo->exec("UPDATE materials SET shopping_qty = 1 WHERE shopping_qty IS NULL OR shopping_qty < 1");
     $pdo->exec("UPDATE materials SET stock_state = 'none' WHERE stock_state IS NULL OR stock_state = ''");
 
     $clientColumns = $pdo->query("DESCRIBE clients")->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('preferred_interval', $clientColumns)) {
+        echo "Sloupec 'preferred_interval' u klientů chybí. Přidávám ho...\n";
+        $pdo->exec("ALTER TABLE clients ADD COLUMN preferred_interval INT DEFAULT 8");
+        echo "Sloupec pro doporučený interval byl úspěšně přidán.\n";
+    } else {
+        echo "Sloupec 'preferred_interval' u klientů už existuje.\n";
+    }
+
+    if (!in_array('hair_texture', $clientColumns)) {
+        echo "Sloupec 'hair_texture' u klientů chybí. Přidávám ho...\n";
+        $pdo->exec("ALTER TABLE clients ADD COLUMN hair_texture VARCHAR(50) DEFAULT NULL");
+        echo "Sloupec pro texturu vlasů byl úspěšně přidán.\n";
+    } else {
+        echo "Sloupec 'hair_texture' u klientů už existuje.\n";
+    }
+
+    if (!in_array('hair_condition', $clientColumns)) {
+        echo "Sloupec 'hair_condition' u klientů chybí. Přidávám ho...\n";
+        $pdo->exec("ALTER TABLE clients ADD COLUMN hair_condition VARCHAR(100) DEFAULT NULL");
+        echo "Sloupec pro stav vlasů byl úspěšně přidán.\n";
+    } else {
+        echo "Sloupec 'hair_condition' u klientů už existuje.\n";
+    }
+
+    if (!in_array('base_tone', $clientColumns)) {
+        echo "Sloupec 'base_tone' u klientů chybí. Přidávám ho...\n";
+        $pdo->exec("ALTER TABLE clients ADD COLUMN base_tone VARCHAR(50) DEFAULT NULL");
+        echo "Sloupec pro základní tón byl úspěšně přidán.\n";
+    } else {
+        echo "Sloupec 'base_tone' u klientů už existuje.\n";
+    }
+
+    if (!in_array('gray_percentage', $clientColumns)) {
+        echo "Sloupec 'gray_percentage' u klientů chybí. Přidávám ho...\n";
+        $pdo->exec("ALTER TABLE clients ADD COLUMN gray_percentage VARCHAR(50) DEFAULT NULL");
+        echo "Sloupec pro procento šedin byl úspěšně přidán.\n";
+    } else {
+        echo "Sloupec 'gray_percentage' u klientů už existuje.\n";
+    }
+
+    if (!in_array('allergy_note', $clientColumns)) {
+        echo "Sloupec 'allergy_note' u klientů chybí. Přidávám ho...\n";
+        $pdo->exec("ALTER TABLE clients ADD COLUMN allergy_note VARCHAR(255) DEFAULT NULL");
+        echo "Sloupec pro alergickou poznámku byl úspěšně přidán.\n";
+    } else {
+        echo "Sloupec 'allergy_note' u klientů už existuje.\n";
+    }
+
     if (!in_array('is_active', $clientColumns)) {
         echo "Sloupec 'is_active' u klientů chybí. Přidávám ho...\n";
         $pdo->exec("ALTER TABLE clients ADD COLUMN is_active TINYINT(1) DEFAULT 1");

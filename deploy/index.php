@@ -1,11 +1,16 @@
-<?php require_once 'includes/logic_init.php'; ?>
+<?php
+require_once 'includes/logic_init.php';
+
+$styleVersion = is_file(__DIR__ . '/style.css') ? (string)filemtime(__DIR__ . '/style.css') : (string)time();
+$swVersion = is_file(__DIR__ . '/sw.js') ? (string)filemtime(__DIR__ . '/sw.js') : (string)time();
+?>
 <!DOCTYPE html>
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aura | Salonní přehled</title>
-    <link rel="stylesheet" href="style.css?v=<?= filemtime(__DIR__ . '/style.css') ?>">
+    <link rel="stylesheet" href="style.css?v=<?= htmlspecialchars($styleVersion, ENT_QUOTES, 'UTF-8') ?>">
     
     <!-- PWA Support -->
     <link rel="manifest" href="manifest.json">
@@ -14,7 +19,7 @@
     <link rel="apple-touch-icon" href="icon.png">
     <meta name="theme-color" content="#0f172a">
 
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide@latest" defer></script>
     <script>
         const allActiveProducts = <?= json_encode(array_values($active_products ?: [])) ?>;
         const CSRF_TOKEN = <?= json_encode($_SESSION['csrf_token'] ?? '') ?>;
@@ -25,7 +30,7 @@
         // PWA Registration
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=<?= filemtime(__DIR__ . '/sw.js') ?>')
+                navigator.serviceWorker.register('sw.js?v=<?= htmlspecialchars($swVersion, ENT_QUOTES, 'UTF-8') ?>')
                     .then(reg => {
                         reg.update();
                         console.log('✅ Service Worker připraven');
@@ -1873,12 +1878,12 @@
 </div> <!-- Koncový tag main-content -->
 
 <script>
-    lucide.createIcons();
+    if (window.lucide) window.lucide.createIcons();
 </script>
     </div> <!-- End .app-container -->
 
     <script>
-        lucide.createIcons();
+        if (window.lucide) window.lucide.createIcons();
     </script>
     <?php require_once 'includes/modals.php'; ?>
     <?php if ($show_settings): ?>

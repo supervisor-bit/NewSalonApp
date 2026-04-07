@@ -45,7 +45,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'clients_pulse') {
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <link rel="apple-touch-icon" href="icon.png">
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide@latest" defer></script>
     <script>
         // PWA Registration for Mobile
         if ('serviceWorker' in navigator) {
@@ -116,7 +116,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'clients_pulse') {
     <?php endif; ?>
 
     <script>
-        lucide.createIcons();
+        if (window.lucide) window.lucide.createIcons();
 
         const searchInput = document.getElementById('m-search');
         const clientList = document.getElementById('client-list');

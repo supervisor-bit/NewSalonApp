@@ -24,8 +24,19 @@ if (!headers_sent()) {
 require 'db.php';
 
 $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
-$is_mobile_client = preg_match('/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i', $user_agent) === 1;
-$default_redirect = $is_mobile_client ? 'm-index.php' : 'index.php';
+$device_override = strtolower(trim((string)($_GET['device'] ?? $_POST['device'] ?? '')));
+
+$is_tablet_client = preg_match('/iPad|Tablet|PlayBook|Silk|(Android(?!.*Mobile))/i', $user_agent) === 1;
+$is_phone_client = preg_match('/iPhone|iPod|Android.*Mobile|webOS|BlackBerry|IEMobile|Opera Mini|Mobile/i', $user_agent) === 1;
+$is_mobile_client = $is_phone_client || $is_tablet_client;
+
+if ($device_override === 'mobile' || $device_override === 'tablet') {
+    $default_redirect = 'm-index.php';
+} elseif ($device_override === 'desktop') {
+    $default_redirect = 'index.php';
+} else {
+    $default_redirect = $is_mobile_client ? 'm-index.php' : 'index.php';
+}
 
 $redirect_target = $_GET['redirect'] ?? $_POST['redirect'] ?? $default_redirect;
 $redirect_target = trim((string)$redirect_target);

@@ -105,22 +105,39 @@ if (!$setup_needed) {
     $has_direct_sales = false;
 
     try {
-        $clientCol = $pdo->query("SHOW COLUMNS FROM clients LIKE 'is_active'")->fetch();
-        if (!$clientCol) {
+        $clientColumns = $pdo->query("SHOW COLUMNS FROM clients")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('preferred_interval', $clientColumns, true)) {
+            $pdo->exec("ALTER TABLE clients ADD COLUMN preferred_interval INT DEFAULT 8");
+        }
+        if (!in_array('hair_texture', $clientColumns, true)) {
+            $pdo->exec("ALTER TABLE clients ADD COLUMN hair_texture VARCHAR(50) DEFAULT NULL");
+        }
+        if (!in_array('hair_condition', $clientColumns, true)) {
+            $pdo->exec("ALTER TABLE clients ADD COLUMN hair_condition VARCHAR(100) DEFAULT NULL");
+        }
+        if (!in_array('base_tone', $clientColumns, true)) {
+            $pdo->exec("ALTER TABLE clients ADD COLUMN base_tone VARCHAR(50) DEFAULT NULL");
+        }
+        if (!in_array('gray_percentage', $clientColumns, true)) {
+            $pdo->exec("ALTER TABLE clients ADD COLUMN gray_percentage VARCHAR(50) DEFAULT NULL");
+        }
+        if (!in_array('allergy_note', $clientColumns, true)) {
+            $pdo->exec("ALTER TABLE clients ADD COLUMN allergy_note VARCHAR(255) DEFAULT NULL");
+        }
+        if (!in_array('is_active', $clientColumns, true)) {
             $pdo->exec("ALTER TABLE clients ADD COLUMN is_active TINYINT(1) DEFAULT 1");
         }
-
-        $tagCol = $pdo->query("SHOW COLUMNS FROM clients LIKE 'client_tags'")->fetch();
-        if (!$tagCol) {
+        if (!in_array('client_tags', $clientColumns, true)) {
             $pdo->exec("ALTER TABLE clients ADD COLUMN client_tags VARCHAR(255) DEFAULT NULL");
         }
-
-        $favoriteCol = $pdo->query("SHOW COLUMNS FROM clients LIKE 'is_favorite'")->fetch();
-        if (!$favoriteCol) {
+        if (!in_array('is_favorite', $clientColumns, true)) {
             $pdo->exec("ALTER TABLE clients ADD COLUMN is_favorite TINYINT(1) DEFAULT 0");
         }
 
         $materialColumns = $pdo->query("SHOW COLUMNS FROM materials")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('is_active', $materialColumns, true)) {
+            $pdo->exec("ALTER TABLE materials ADD COLUMN is_active TINYINT(1) DEFAULT 1");
+        }
         if (!in_array('needs_buying', $materialColumns, true)) {
             $pdo->exec("ALTER TABLE materials ADD COLUMN needs_buying TINYINT(1) DEFAULT 0");
         }
@@ -137,6 +154,9 @@ if (!$setup_needed) {
         $pdo->exec("UPDATE materials SET stock_state = 'none' WHERE stock_state IS NULL OR stock_state = '' OR stock_state NOT IN ('none', 'opened', 'low', 'ordered')");
 
         $productColumns = $pdo->query("SHOW COLUMNS FROM products")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('is_active', $productColumns, true)) {
+            $pdo->exec("ALTER TABLE products ADD COLUMN is_active TINYINT(1) DEFAULT 1");
+        }
         if (!in_array('ean', $productColumns, true)) {
             $pdo->exec("ALTER TABLE products ADD COLUMN ean VARCHAR(64) DEFAULT NULL");
         }
@@ -497,7 +517,7 @@ if (!$setup_needed) {
         SELECT c.id, c.first_name, c.last_name, SUM(v.price) as work_sum
         FROM clients c
         JOIN visits v ON c.id = v.client_id
-        GROUP BY c.id
+        GROUP BY c.id, c.first_name, c.last_name
         ORDER BY work_sum DESC
         LIMIT 5
     ");
@@ -515,7 +535,7 @@ if (!$setup_needed) {
         JOIN materials m ON f.material_id = m.id 
         JOIN visits v ON f.visit_id = v.id 
         " . $date_clause . "
-        GROUP BY f.material_id 
+        GROUP BY f.material_id, m.name, m.category 
         ORDER BY total_g DESC 
         LIMIT 5
     ");

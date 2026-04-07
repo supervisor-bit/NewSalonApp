@@ -1,4 +1,24 @@
 <?php
+if (!function_exists('mb_substr')) {
+    function mb_substr($string, $start, $length = null, $encoding = null) {
+        return $length === null
+            ? substr((string)$string, (int)$start)
+            : substr((string)$string, (int)$start, (int)$length);
+    }
+}
+
+if (!function_exists('mb_strtolower')) {
+    function mb_strtolower($string, $encoding = null) {
+        return strtolower((string)$string);
+    }
+}
+
+if (!function_exists('mb_strtoupper')) {
+    function mb_strtoupper($string, $encoding = null) {
+        return strtoupper((string)$string);
+    }
+}
+
 // Function to load .env variables
 function loadEnv($path) {
     if (!file_exists($path)) return;
