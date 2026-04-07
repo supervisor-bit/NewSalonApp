@@ -161,6 +161,20 @@ if (!$setup_needed) {
             $pdo->exec("ALTER TABLE products ADD COLUMN ean VARCHAR(64) DEFAULT NULL");
         }
 
+        $productBrandFixes = [
+            'Tecni.art' => ['Tecni.art %', 'Tecni.art - %'],
+            'Hair Touch Up' => ['Hair Touch Up %', 'Hair Touch Up - %'],
+            'Homme' => ['Homme %', 'Homme - %'],
+            'Infinium' => ['Infinium %', 'Infinium - %'],
+            'SteamPod' => ['SteamPod %', 'SteamPod - %'],
+        ];
+        foreach ($productBrandFixes as $normalizedBrand => $patterns) {
+            $conditions = implode(' OR ', array_fill(0, count($patterns), 'name LIKE ?'));
+            $params = array_merge([$normalizedBrand, $normalizedBrand], $patterns);
+            $stmt = $pdo->prepare("UPDATE products SET brand = ? WHERE brand <> ? AND ($conditions)");
+            $stmt->execute($params);
+        }
+
         $pdo->exec("CREATE TABLE IF NOT EXISTS direct_sales (
             id INT PRIMARY KEY AUTO_INCREMENT,
             product_id INT NOT NULL,

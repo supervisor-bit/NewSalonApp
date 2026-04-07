@@ -60,6 +60,40 @@ function resolveImportCsv(array $preferredNames, array $patterns): ?string {
     return null;
 }
 
+function resolveProductBrandLabel(string $brand, string $line): string {
+    $brand = trim($brand);
+    $line = trim($line);
+    $specialLines = ['Tecni.art', 'Hair Touch Up', 'Homme', 'Infinium', 'SteamPod'];
+
+    foreach ($specialLines as $specialLine) {
+        if ($line !== '' && mb_strtolower($line, 'UTF-8') === mb_strtolower($specialLine, 'UTF-8')) {
+            return $specialLine;
+        }
+    }
+
+    return $brand !== '' ? $brand : ($line !== '' ? $line : 'Produkt');
+}
+
+function buildImportedProductName(string $brandLabel, string $line, string $product, string $volume, string $type = ''): string {
+    $line = trim($line);
+    $product = trim($product);
+    $volume = trim($volume);
+    $type = trim($type);
+
+    $name = $product;
+    if ($line !== '' && mb_strtolower($brandLabel, 'UTF-8') !== mb_strtolower($line, 'UTF-8')) {
+        $name = $line . ' - ' . $name;
+    }
+    if ($volume !== '') {
+        $name .= ' (' . $volume . ')';
+    }
+    if ($type !== '' && mb_strtolower($type, 'UTF-8') !== 'retail') {
+        $name .= ' · ' . $type;
+    }
+
+    return trim($name);
+}
+
 if (!isset($_GET['run'])) {
     echo "<div class='warning'>⚠️ VAROVÁNÍ: Spuštění tohoto skriptu SMAŽE veškerá současná data a nastaví čistou databázi!</div>";
     echo "<p>Výchozí instalace vytvoří čistý systém bez demo klienta. Číselníky materiálů a produktů se importují jen na vyžádání.</p>";
@@ -125,9 +159,16 @@ try {
             fgetcsv($handle, 0, ';');
             while (($data = fgetcsv($handle, 0, ';')) !== FALSE) {
                 if (count($data) < 6) continue;
-                $fullName = $data[1] . ' - ' . $data[2] . ' (' . $data[3] . ')';
+                $brandLabel = resolveProductBrandLabel((string)($data[0] ?? ''), (string)($data[1] ?? ''));
+                $fullName = buildImportedProductName(
+                    $brandLabel,
+                    (string)($data[1] ?? ''),
+                    (string)($data[2] ?? ''),
+                    (string)($data[3] ?? ''),
+                    (string)($data[4] ?? '')
+                );
                 $stmt = $pdo->prepare("INSERT INTO products (brand, name, price) VALUES (?, ?, ?)");
-                $stmt->execute([$data[0], $fullName, (int)$data[5]]);
+                $stmt->execute([$brandLabel, $fullName, (int)$data[5]]);
                 $productCount++;
             }
             fclose($handle);

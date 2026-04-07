@@ -67,6 +67,23 @@ try {
         echo "Sloupec 'is_active' u produktů už existuje.\n";
     }
 
+    $normalizedProductGroups = 0;
+    $productBrandFixes = [
+        'Tecni.art' => ['Tecni.art %', 'Tecni.art - %'],
+        'Hair Touch Up' => ['Hair Touch Up %', 'Hair Touch Up - %'],
+        'Homme' => ['Homme %', 'Homme - %'],
+        'Infinium' => ['Infinium %', 'Infinium - %'],
+        'SteamPod' => ['SteamPod %', 'SteamPod - %'],
+    ];
+    foreach ($productBrandFixes as $normalizedBrand => $patterns) {
+        $conditions = implode(' OR ', array_fill(0, count($patterns), 'name LIKE ?'));
+        $params = array_merge([$normalizedBrand, $normalizedBrand], $patterns);
+        $stmt = $pdo->prepare("UPDATE products SET brand = ? WHERE brand <> ? AND ($conditions)");
+        $stmt->execute($params);
+        $normalizedProductGroups += $stmt->rowCount();
+    }
+    echo "Sjednocení skupin produktů dokončeno (upraveno $normalizedProductGroups záznamů).\n";
+
     $pdo->exec("UPDATE materials SET shopping_qty = 1 WHERE shopping_qty IS NULL OR shopping_qty < 1");
     $pdo->exec("UPDATE materials SET stock_state = 'none' WHERE stock_state IS NULL OR stock_state = ''");
 
